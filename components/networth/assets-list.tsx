@@ -88,7 +88,7 @@ export function AssetsList() {
             Assets
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge className="bg-emerald-600 text-white">
+            <Badge className="bg-emerald-600 text-white font-mono">
               ${totalAssets.toLocaleString()}
             </Badge>
             <Button
@@ -127,10 +127,10 @@ export function AssetsList() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-xl font-bold text-emerald-600">
+                    <div className="text-xl font-bold text-emerald-600 font-mono">
                       ${asset.value.toLocaleString()}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground font-mono">
                       {((asset.value / totalAssets) * 100).toFixed(1)}% of total
                     </div>
                   </div>

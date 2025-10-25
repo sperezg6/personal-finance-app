@@ -1,10 +1,21 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import * as React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardToolbar } from "@/components/ui/card"
+import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
 import { NetWorthSnapshot } from "@/types"
+import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/line-charts-1"
+import { Badge } from "@/components/ui/badge-2"
+import { Button } from "@/components/ui/button-1"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ArrowDown, ArrowUp, Calendar, Download, Filter, MoreHorizontal, RefreshCw, Share2 } from "lucide-react"
 
-const historicalData: NetWorthSnapshot[] = [
+interface NetWorthData extends NetWorthSnapshot {
+  netWorthArea: number
+  month: string
+}
+
+const rawData: NetWorthSnapshot[] = [
   { date: '2024-01', totalAssets: 98500, totalLiabilities: 52000, netWorth: 46500 },
   { date: '2024-02', totalAssets: 101200, totalLiabilities: 51200, netWorth: 50000 },
   { date: '2024-03', totalAssets: 103800, totalLiabilities: 50400, netWorth: 53400 },
@@ -19,77 +30,256 @@ const historicalData: NetWorthSnapshot[] = [
   { date: '2024-12', totalAssets: 125750, totalLiabilities: 42300, netWorth: 83450 },
 ]
 
-export function NetWorthChart() {
+// Transform data to include area and formatted month
+const historicalData: NetWorthData[] = rawData.map(item => ({
+  ...item,
+  netWorthArea: item.netWorth,
+  month: item.date.slice(5) // Get just "01", "02", etc.
+}))
+
+const chartConfig = {
+  netWorth: {
+    label: 'Net Worth',
+    color: 'var(--color-teal-500)',
+  },
+  totalAssets: {
+    label: 'Total Assets',
+    color: 'var(--color-blue-500)',
+  },
+  totalLiabilities: {
+    label: 'Total Liabilities',
+    color: 'var(--color-pink-500)',
+  },
+} satisfies ChartConfig
+
+// Custom Label Component
+const ChartLabel = ({ label, color }: { label: string; color: string }) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Net Worth History</CardTitle>
+    <div className="flex items-center gap-1.5">
+      <div className="size-3.5 border-4 rounded-full bg-background" style={{ borderColor: color }}></div>
+      <span className="text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
+// Custom Tooltip
+interface TooltipProps {
+  active?: boolean
+  payload?: Array<{
+    dataKey: string
+    value: number
+    color: string
+  }>
+  label?: string
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
+  if (active && payload && payload.length) {
+    // Filter out netWorthArea from tooltip
+    const filteredPayload = payload.filter((entry) => entry.dataKey !== 'netWorthArea')
+
+    return (
+      <div className="rounded-lg border bg-popover p-3 shadow-sm shadow-black/5 min-w-[200px]">
+        <div className="text-xs font-medium text-muted-foreground tracking-wide mb-2.5">
+          Month {label}
+        </div>
+        <div className="space-y-2">
+          {filteredPayload.map((entry, index) => {
+            const config = chartConfig[entry.dataKey as keyof typeof chartConfig]
+
+            // Calculate percentage change for comparison
+            let percentChange = 0
+            if (index > 0 && entry.dataKey === 'netWorth') {
+              const assetsEntry = filteredPayload.find(e => e.dataKey === 'totalAssets')
+              const liabilitiesEntry = filteredPayload.find(e => e.dataKey === 'totalLiabilities')
+              if (assetsEntry && liabilitiesEntry) {
+                percentChange = ((entry.value / assetsEntry.value) * 100)
+              }
+            }
+
+            return (
+              <div key={index} className="flex items-center gap-2 text-xs">
+                <ChartLabel label={config?.label + ':'} color={entry.color} />
+                <span className="font-semibold text-popover-foreground">
+                  ${(entry.value / 1000).toFixed(1)}k
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
+export function NetWorthChart() {
+  // Calculate trend
+  const latestValue = historicalData[historicalData.length - 1].netWorth
+  const previousValue = historicalData[historicalData.length - 2].netWorth
+  const trend = ((latestValue - previousValue) / previousValue * 100).toFixed(1)
+
+  // Get current month for reference line
+  const currentMonth = '12'
+
+  return (
+    <Card className="w-full">
+      <CardHeader className="border-0 min-h-auto pt-6 pb-6">
+        <CardTitle className="text-base font-semibold">Net Worth History</CardTitle>
+        <CardToolbar>
+          <div className="flex items-center gap-4 text-sm">
+            <ChartLabel label="Net Worth" color={chartConfig.netWorth.color} />
+            <ChartLabel label="Assets" color={chartConfig.totalAssets.color} />
+            <ChartLabel label="Liabilities" color={chartConfig.totalLiabilities.color} />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="dim" size="sm" mode="icon" className="-me-1.5">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="bottom">
+              <DropdownMenuItem>
+                <Download className="size-4" />
+                Export Data
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Calendar className="size-4" />
+                Change Period
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Filter className="size-4" />
+                Filter Data
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <RefreshCw className="size-4" />
+                Refresh
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <Share2 className="size-4" />
+                Share Report
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardToolbar>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={400}>
-          <AreaChart data={historicalData}>
+
+      <CardContent className="px-2.5 flex flex-col items-end">
+        <ChartContainer
+          config={chartConfig}
+          className="h-[350px] w-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
+        >
+          <ComposedChart
+            data={historicalData}
+            margin={{
+              top: 5,
+              right: 15,
+              left: 5,
+              bottom: 5,
+            }}
+          >
             <defs>
               <linearGradient id="netWorthGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="rgb(16 185 129)" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="rgb(16 185 129)" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="assetsGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="rgb(59 130 246)" stopOpacity={0.2}/>
-                <stop offset="95%" stopColor="rgb(59 130 246)" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="liabilitiesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="rgb(239 68 68)" stopOpacity={0.2}/>
-                <stop offset="95%" stopColor="rgb(239 68 68)" stopOpacity={0}/>
+                <stop offset="0%" stopColor={chartConfig.netWorth.color} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={chartConfig.netWorth.color} stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+
+            <CartesianGrid
+              strokeDasharray="4 4"
+              stroke="var(--input)"
+              strokeOpacity={1}
+              horizontal={true}
+              vertical={false}
+            />
+
             <XAxis
-              dataKey="date"
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              dataKey="month"
+              axisLine={false}
               tickLine={false}
+              tick={{ fontSize: 11, className: 'text-muted-foreground' }}
+              dy={5}
+              tickMargin={12}
             />
+
             <YAxis
-              stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              axisLine={false}
               tickLine={false}
+              tick={{ fontSize: 11, className: 'text-muted-foreground' }}
               tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              domain={['dataMin - 5000', 'dataMax + 5000']}
+              tickMargin={12}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
+
+            {/* Current month reference line */}
+            <ReferenceLine x={currentMonth} stroke={chartConfig.netWorth.color} strokeWidth={1} />
+
+            {/* Tooltip */}
+            <ChartTooltip
+              content={<CustomTooltip />}
+              cursor={{
+                stroke: 'var(--input)',
+                strokeWidth: 1,
+                strokeDasharray: 'none',
               }}
-              formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
-              labelFormatter={(label) => `Month: ${label}`}
             />
+
+            {/* Net Worth area with gradient background */}
             <Area
-              type="monotone"
-              dataKey="totalAssets"
-              stroke="rgb(59 130 246)"
-              strokeWidth={2}
-              fill="url(#assetsGradient)"
-              name="Assets"
-            />
-            <Area
-              type="monotone"
-              dataKey="totalLiabilities"
-              stroke="rgb(239 68 68)"
-              strokeWidth={2}
-              fill="url(#liabilitiesGradient)"
-              name="Liabilities"
-            />
-            <Area
-              type="monotone"
-              dataKey="netWorth"
-              stroke="rgb(16 185 129)"
-              strokeWidth={3}
+              type="linear"
+              dataKey="netWorthArea"
+              stroke="transparent"
               fill="url(#netWorthGradient)"
-              name="Net Worth"
+              strokeWidth={0}
+              dot={false}
             />
-          </AreaChart>
-        </ResponsiveContainer>
+
+            {/* Net Worth line with dots */}
+            <Line
+              type="linear"
+              dataKey="netWorth"
+              stroke={chartConfig.netWorth.color}
+              strokeWidth={2}
+              dot={{
+                fill: 'var(--background)',
+                strokeWidth: 2,
+                r: 6,
+                stroke: chartConfig.netWorth.color,
+              }}
+            />
+
+            {/* Assets line (solid) */}
+            <Line
+              type="linear"
+              dataKey="totalAssets"
+              stroke={chartConfig.totalAssets.color}
+              strokeWidth={2}
+              dot={{
+                fill: 'var(--background)',
+                strokeWidth: 2,
+                r: 6,
+                stroke: chartConfig.totalAssets.color,
+              }}
+            />
+
+            {/* Liabilities line (dashed) */}
+            <Line
+              type="linear"
+              dataKey="totalLiabilities"
+              stroke={chartConfig.totalLiabilities.color}
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              dot={{
+                fill: 'var(--background)',
+                strokeWidth: 2,
+                r: 6,
+                stroke: chartConfig.totalLiabilities.color,
+                strokeDasharray: '0',
+              }}
+            />
+          </ComposedChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   )

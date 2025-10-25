@@ -1,18 +1,36 @@
 'use client'
 
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { AddBudgetDialog } from '@/components/forms/add-budget-dialog'
+import { BudgetFormData } from '@/components/forms/add-budget-form'
 
-export function AddBudgetButton() {
-  const handleAddBudget = () => {
-    // This would open a dialog/modal in a real implementation
-    console.log('Add new budget category')
-  }
+export interface AddBudgetButtonProps {
+  /**
+   * Callback when budget is submitted
+   * @param data - The budget form data
+   */
+  onSubmit?: (data: BudgetFormData) => void | Promise<void>
 
+  /**
+   * Custom className for the button
+   */
+  className?: string
+}
+
+/**
+ * Specialized button for adding budget categories
+ * Uses the simple variant for a clean, straightforward appearance
+ * Opens a dialog with a form to add a new budget
+ *
+ * @example
+ * <AddBudgetButton onSubmit={(data) => console.log('New budget:', data)} />
+ */
+export function AddBudgetButton({ onSubmit, className }: AddBudgetButtonProps) {
   return (
-    <Button onClick={handleAddBudget}>
-      <Plus className="h-4 w-4 mr-2" />
-      Add Budget
-    </Button>
+    <AddBudgetDialog
+      label="Add Budget"
+      variant="simple"
+      onSubmit={onSubmit}
+      className={className}
+    />
   )
 }

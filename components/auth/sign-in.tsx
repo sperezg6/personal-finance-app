@@ -7,22 +7,59 @@ import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MeshGradient } from '@paper-design/shaders-react';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { useRouter } from 'next/navigation';
 
 export function SignIn() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [rememberMe, setRememberMe] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { signIn, signInWithGoogle } = useAuth();
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle sign-in logic here
-    console.log('Sign in with:', { email, password, rememberMe });
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { error } = await signIn(email, password);
+
+      if (error) {
+        setError(error.message || 'Failed to sign in. Please check your credentials.');
+      } else {
+        setSuccess('Successfully signed in! Redirecting...');
+        // The useAuth hook handles the redirect
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleSignIn = () => {
-    // Handle Google sign-in logic here
-    console.log('Sign in with Google');
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await signInWithGoogle();
+
+      if (error) {
+        setError(error.message || 'Failed to sign in with Google.');
+        setIsLoading(false);
+      }
+      // For OAuth, loading state will remain until redirect happens
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -46,6 +83,20 @@ export function SignIn() {
             </p>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {success && (
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+              <p className="text-sm text-green-800 dark:text-green-200">{success}</p>
+            </div>
+          )}
+
           {/* Sign In Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
@@ -59,6 +110,7 @@ export function SignIn() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={isLoading}
                   className="h-11"
                 />
               </div>
@@ -74,12 +126,14 @@ export function SignIn() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={isLoading}
                     className="h-11 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    disabled={isLoading}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
@@ -100,16 +154,21 @@ export function SignIn() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={isLoading}
                   className={cn(
                     'w-4 h-4 rounded border-input bg-background',
                     'cursor-pointer transition-all duration-200',
                     'checked:bg-gray-800 checked:border-gray-800',
-                    'focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2'
+                    'focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2',
+                    'disabled:opacity-50 disabled:cursor-not-allowed'
                   )}
                 />
                 <Label
                   htmlFor="remember"
-                  className="text-sm font-normal cursor-pointer select-none"
+                  className={cn(
+                    'text-sm font-normal cursor-pointer select-none',
+                    isLoading && 'opacity-50'
+                  )}
                 >
                   Remember me
                 </Label>
@@ -125,9 +184,10 @@ export function SignIn() {
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full h-11 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white shadow-lg shadow-gray-800/30"
+              disabled={isLoading}
+              className="w-full h-11 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white shadow-lg shadow-gray-800/30 disabled:opacity-50"
             >
-              Sign in
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
 
             {/* Divider */}
@@ -148,6 +208,7 @@ export function SignIn() {
               variant="outline"
               className="w-full h-11"
               onClick={handleGoogleSignIn}
+              disabled={isLoading}
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -167,7 +228,7 @@ export function SignIn() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Sign in with Google
+              {isLoading ? 'Signing in...' : 'Sign in with Google'}
             </Button>
           </form>
 

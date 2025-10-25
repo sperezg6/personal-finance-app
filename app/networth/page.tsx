@@ -68,12 +68,12 @@ export default function NetWorthPage() {
             <CardContent className="py-12">
               <div className="text-center space-y-4">
                 <div className="text-muted-foreground text-lg font-medium">Your Net Worth</div>
-                <div className="text-6xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                <div className="text-6xl font-bold bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent font-mono">
                   ${netWorth.toLocaleString()}
                 </div>
                 <div className="flex items-center justify-center gap-2 text-emerald-600">
                   <TrendingUp className="h-5 w-5" />
-                  <span className="text-lg font-semibold">
+                  <span className="text-lg font-semibold font-mono">
                     +${monthlyChange.toLocaleString()} ({percentageChange}%) this month
                   </span>
                 </div>
@@ -103,12 +103,12 @@ export default function NetWorthPage() {
                         <div className="text-sm text-muted-foreground whitespace-nowrap">{stat.period}</div>
 
                         {/* Value */}
-                        <div className="text-3xl font-bold text-foreground tracking-tight">{stat.value}</div>
+                        <div className="text-3xl font-bold text-foreground tracking-tight font-mono">{stat.value}</div>
                       </div>
 
                       {/* Percentage badge */}
                       {stat.percentage && (
-                        <div className="text-sm font-semibold" style={{ color: stat.color }}>
+                        <div className="text-sm font-semibold font-mono" style={{ color: stat.color }}>
                           {stat.percentage}
                         </div>
                       )}

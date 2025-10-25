@@ -5,8 +5,9 @@ import { BlurFade } from "@/components/ui/blur-fade"
 import { Card, CardContent } from "@/components/ui/card"
 import { BudgetCards } from "@/components/budget/budget-cards"
 import { BudgetSummary } from "@/components/budget/budget-summary"
-import { AddBudgetButton } from "@/components/budget/add-budget-button"
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle } from "lucide-react"
+import { AddButton } from "@/components/ui/add-transaction-button"
+import { BarChartComponent } from '@/components/charts/bar-chart'
 
 export default function BudgetPage() {
   const summaryStats = [
@@ -57,7 +58,9 @@ export default function BudgetPage() {
             </BlurFade>
           </div>
           <BlurFade delay={0.75} inView>
-            <AddBudgetButton />
+            <AddButton
+                              label="Add Budget"
+                              />
           </BlurFade>
         </div>
 
@@ -82,12 +85,12 @@ export default function BudgetPage() {
                         <div className="text-sm text-muted-foreground whitespace-nowrap">{stat.period}</div>
 
                         {/* Value */}
-                        <div className="text-3xl font-bold text-foreground tracking-tight">{stat.value}</div>
+                        <div className="text-3xl font-bold text-foreground tracking-tight font-mono">{stat.value}</div>
                       </div>
 
                       {/* Percentage badge */}
                       {stat.percentage && (
-                        <div className="text-sm font-semibold text-muted-foreground">
+                        <div className="text-sm font-semibold text-muted-foreground font-mono">
                           {stat.percentage}
                         </div>
                       )}
@@ -101,11 +104,11 @@ export default function BudgetPage() {
 
         {/* Budget Summary Overview */}
         <BlurFade delay={1.25} inView>
-          <BudgetSummary />
+          <BarChartComponent />
         </BlurFade>
 
         {/* Budget Cards with Circular Progress */}
-        <BlurFade delay={1.5} inView>
+        <BlurFade delay={1.25} inView>
           <BudgetCards />
         </BlurFade>
       </div>

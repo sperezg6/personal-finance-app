@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AddTransactionButton } from "@/components/ui/add-transaction-button"
+import { AddButton } from "@/components/ui/add-transaction-button"
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, TrendingDown, TrendingUp, Hash, MoreVertical, Pencil, Trash2, Copy } from "lucide-react"
 import { useState } from "react"
 
@@ -169,7 +169,7 @@ export default function TransactionsPage() {
                         <div className="text-sm text-muted-foreground whitespace-nowrap">{card.period}</div>
 
                         {/* Value */}
-                        <div className="text-3xl font-bold text-foreground tracking-tight">{card.value}</div>
+                        <div className="text-3xl font-bold text-foreground tracking-tight font-mono">{card.value}</div>
                       </div>
                     </div>
                   </CardContent>
@@ -185,7 +185,9 @@ export default function TransactionsPage() {
             <CardContent className="p-0">
               <div className="p-6 border-b flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Recent Transactions</h2>
-                <AddTransactionButton />
+                <AddButton
+                  label="Add Transactions"
+                  />
               </div>
               <div className="overflow-auto max-h-[600px]">
                 <Table>
@@ -244,7 +246,7 @@ export default function TransactionsPage() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-right font-semibold">
-                          <span className={transaction.type === 'income' ? 'text-emerald-600' : 'text-red-600'}>
+                          <span className={`font-mono ${transaction.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
                             {transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
                           </span>
                         </TableCell>

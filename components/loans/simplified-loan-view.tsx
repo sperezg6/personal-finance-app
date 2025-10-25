@@ -123,9 +123,9 @@ export function SimplifiedLoanView() {
       {/* Clean Header with Essential Info */}
       <div className="space-y-6">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Student Loans</h1>
+          <h1 className="text-4xl font-bold mb-2">Loans</h1>
           <p className="text-muted-foreground">
-            Track your student loan balances and payment schedule
+            Track your different loan balances and payment schedule
           </p>
         </div>
 

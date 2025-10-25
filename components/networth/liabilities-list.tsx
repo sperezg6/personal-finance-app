@@ -85,7 +85,7 @@ export function LiabilitiesList() {
             Liabilities
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge className="bg-red-600 text-white">
+            <Badge className="bg-red-600 text-white font-mono">
               ${totalLiabilities.toLocaleString()}
             </Badge>
             <Button
@@ -124,7 +124,7 @@ export function LiabilitiesList() {
                       {liability.interestRate && (
                         <Badge
                           variant="secondary"
-                          className="bg-orange-100 text-orange-700 text-xs"
+                          className="bg-orange-100 text-orange-700 text-xs font-mono"
                         >
                           {liability.interestRate}% APR
                         </Badge>
@@ -134,10 +134,10 @@ export function LiabilitiesList() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-xl font-bold text-red-600">
+                    <div className="text-xl font-bold text-red-600 font-mono">
                       ${liability.value.toLocaleString()}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground font-mono">
                       {((liability.value / totalLiabilities) * 100).toFixed(1)}% of total
                     </div>
                   </div>

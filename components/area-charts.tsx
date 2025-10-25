@@ -5,98 +5,61 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CircleDollarSign, TrendingUp, UserPlus } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 
-// Business Case 1: SaaS Revenue Tracking
-const revenueData = [
-  { value: 1000 },
-  { value: 4500 },
-  { value: 2000 },
-  { value: 5200 },
-  { value: 1500 },
-  { value: 6100 },
-  { value: 3000 },
-  { value: 6800 },
-  { value: 2000 },
-  { value: 1000 },
-  { value: 4000 },
-  { value: 2000 },
-  { value: 3000 },
-  { value: 2000 },
-  { value: 6238 },
-];
+// Default data for when no real data is available
+const defaultData = Array.from({ length: 15 }, () => ({ value: Math.random() * 5000 + 1000 }));
 
-// Business Case 2: New Customer Acquisition
-const customersData = [
-  { value: 2000 },
-  { value: 4500 },
-  { value: 2000 },
-  { value: 5200 },
-  { value: 1500 },
-  { value: 5100 },
-  { value: 2500 },
-  { value: 6800 },
-  { value: 1800 },
-  { value: 1000 },
-  { value: 3000 },
-  { value: 2000 },
-  { value: 2700 },
-  { value: 2000 },
-  { value: 4238 },
-];
+interface AreaChartsProps {
+  userId?: string;
+  income?: number;
+  savings?: number;
+  spending?: number;
+  incomeData?: Array<{ value: number }>;
+  savingsData?: Array<{ value: number }>;
+  spendingData?: Array<{ value: number }>;
+}
 
-// Business Case 3: Monthly Active Users
-const activeUsersData = [
-  { value: 2000 },
-  { value: 3500 },
-  { value: 2000 },
-  { value: 5200 },
-  { value: 1200 },
-  { value: 4100 },
-  { value: 3500 },
-  { value: 5800 },
-  { value: 2000 },
-  { value: 800 },
-  { value: 3000 },
-  { value: 1000 },
-  { value: 4000 },
-  { value: 2000 },
-  { value: 4238 },
-];
-
-// Business cards configuration
-const businessCards = [
-  {
-    title: 'Income',
-    period: 'Last 28 days',
-    value: '$6,238',
-    timestamp: '',
-    data: revenueData,
-    color: 'rgb(16 185 129)', // emerald-500
-    icon: CircleDollarSign,
-    gradientId: 'revenueGradient',
-  },
-  {
-    title: 'Savings',
-    period: 'Last 28 days',
-    value: '6,202',
-    timestamp: '3h ago',
-    data: customersData,
-    color: 'rgb(59 130 246)', // blue-500
-    icon: UserPlus,
-    gradientId: 'customersGradient',
-  },
-  {
-    title: 'Spending',
-    period: 'Last 28 days',
-    value: '18,945',
-    timestamp: '1h ago',
-    data: activeUsersData,
-    color: 'rgb(239 68 68)', // red 500
-    icon: TrendingUp,
-    gradientId: 'usersGradient',
-  },
-];
-
-export default function AreaCharts() {
+export default function AreaCharts({
+  userId,
+  income = 6238,
+  savings = 6202,
+  spending = 18945,
+  incomeData = defaultData,
+  savingsData = defaultData,
+  spendingData = defaultData,
+}: AreaChartsProps) {
+  // Business cards configuration
+  const businessCards = [
+    {
+      title: 'Income',
+      period: 'Last 28 days',
+      value: `$${income.toLocaleString()}`,
+      timestamp: '',
+      data: incomeData,
+      color: 'rgb(16 185 129)', // emerald-500
+      icon: CircleDollarSign,
+      gradientId: 'revenueGradient',
+    },
+    {
+      title: 'Savings',
+      period: 'Last 28 days',
+      value: savings.toLocaleString(),
+      timestamp: '3h ago',
+      data: savingsData,
+      color: 'rgb(59 130 246)', // blue-500
+      icon: UserPlus,
+      gradientId: 'customersGradient',
+    },
+    {
+      title: 'Spending',
+      period: 'Last 28 days',
+      value: spending.toLocaleString(),
+      timestamp: '1h ago',
+      data: spendingData,
+      color: 'rgb(239 68 68)', // red 500
+      icon: TrendingUp,
+      gradientId: 'usersGradient',
+    },
+  ];
   return (
     <div className="w-full">
       <div className="@container w-full">

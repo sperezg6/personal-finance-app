@@ -67,14 +67,14 @@ export function SavingsSummary() {
                   <div className="text-sm text-muted-foreground whitespace-nowrap">{card.period}</div>
 
                   {/* Value */}
-                  <div className="text-3xl font-bold text-foreground tracking-tight">{card.value}</div>
+                  <div className="text-3xl font-bold text-foreground tracking-tight font-mono">{card.value}</div>
                 </div>
 
                 {/* Badge if exists */}
                 {card.badge && (
                   <Badge
                     variant="secondary"
-                    className="text-sm font-semibold"
+                    className="text-sm font-semibold font-mono"
                     style={{ backgroundColor: `${card.color}20`, color: card.color }}
                   >
                     {card.badge}

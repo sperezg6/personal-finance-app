@@ -273,17 +273,17 @@ export function BudgetCards() {
                       autoFocus
                     />
                   ) : (
-                    <span className="font-semibold">${budget.monthlyLimit.toFixed(2)}</span>
+                    <span className="font-semibold font-mono">${budget.monthlyLimit.toFixed(2)}</span>
                   )}
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Spent</span>
-                  <span className="font-semibold text-red-600">${budget.spent.toFixed(2)}</span>
+                  <span className="font-semibold text-red-600 font-mono">${budget.spent.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm pt-2 border-t">
                   <span className="text-muted-foreground font-medium">Remaining</span>
                   <span
-                    className="font-bold"
+                    className="font-bold font-mono"
                     style={{
                       color: budget.remaining >= 0 ? 'rgb(16 185 129)' : 'rgb(239 68 68)'
                     }}
