@@ -402,3 +402,77 @@ FROM transactions t
 JOIN categories c ON t.category_id = c.id
 WHERE t.type = 'expense'
 GROUP BY t.user_id, c.id, c.name, c.icon, c.color, DATE_TRUNC('month', t.date);
+
+-- =====================================================
+-- 7. LOANS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS loans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    name TEXT NOT NULL,
+    loan_type TEXT CHECK (loan_type IN ('mortgage', 'auto', 'student', 'personal', 'credit_card', 'business', 'other')) NOT NULL,
+    principal_amount DECIMAL(12, 2) NOT NULL,
+    current_balance DECIMAL(12, 2) NOT NULL,
+    interest_rate DECIMAL(5, 2) DEFAULT 0,
+    monthly_payment DECIMAL(12, 2) DEFAULT 0,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    lender TEXT,
+    status TEXT CHECK (status IN ('active', 'paid_off', 'deferred')) DEFAULT 'active',
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS Policies for loans
+ALTER TABLE loans ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own loans" ON loans;
+CREATE POLICY "Users can view own loans"
+    ON loans FOR SELECT
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own loans" ON loans;
+CREATE POLICY "Users can insert own loans"
+    ON loans FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own loans" ON loans;
+CREATE POLICY "Users can update own loans"
+    ON loans FOR UPDATE
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own loans" ON loans;
+CREATE POLICY "Users can delete own loans"
+    ON loans FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Apply updated_at trigger to loans table
+DROP TRIGGER IF EXISTS update_loans_updated_at ON loans;
+CREATE TRIGGER update_loans_updated_at BEFORE UPDATE ON loans
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- NET WORTH CALCULATION VIEW
+-- =====================================================
+
+-- View: Net Worth Summary
+CREATE OR REPLACE VIEW net_worth_summary AS
+SELECT
+    u.id as user_id,
+    -- Assets
+    COALESCE(SUM(CASE WHEN a.type IN ('checking', 'savings', 'cash', 'investment') THEN a.balance ELSE 0 END), 0) as cash_and_accounts,
+    COALESCE(SUM(sg.current_amount), 0) as savings_goals_total,
+    -- Liabilities
+    COALESCE(SUM(CASE WHEN a.type = 'credit_card' AND a.balance < 0 THEN ABS(a.balance) ELSE 0 END), 0) as credit_card_debt,
+    COALESCE(SUM(l.current_balance), 0) as loans_total,
+    -- Net Worth Calculation
+    COALESCE(SUM(CASE WHEN a.type IN ('checking', 'savings', 'cash', 'investment') THEN a.balance ELSE 0 END), 0) +
+    COALESCE(SUM(sg.current_amount), 0) -
+    COALESCE(SUM(CASE WHEN a.type = 'credit_card' AND a.balance < 0 THEN ABS(a.balance) ELSE 0 END), 0) -
+    COALESCE(SUM(l.current_balance), 0) as net_worth
+FROM auth.users u
+LEFT JOIN accounts a ON a.user_id = u.id AND a.is_active = TRUE
+LEFT JOIN savings_goals sg ON sg.user_id = u.id AND sg.is_completed = FALSE
+LEFT JOIN loans l ON l.user_id = u.id AND l.status = 'active'
+GROUP BY u.id;

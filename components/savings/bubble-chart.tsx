@@ -15,68 +15,42 @@ interface BubbleData {
   icon: string
 }
 
-const savingsData: BubbleData[] = [
-  {
-    id: '1',
-    name: 'Emergency Fund',
-    amount: 12500,
-    percentage: 35,
-    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Emerald gradient
-    glowColor: 'rgba(16, 185, 129, 0.6)',
-    solidColor: '#10b981',
-    icon: '💰'
-  },
-  {
-    id: '2',
-    name: 'Stocks',
-    amount: 8200,
-    percentage: 23,
-    gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', // Indigo gradient
-    glowColor: 'rgba(99, 102, 241, 0.6)',
-    solidColor: '#6366f1',
-    icon: '📈'
-  },
-  {
-    id: '3',
-    name: 'Car Fund',
-    amount: 6000,
-    percentage: 17,
-    gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Blue gradient
-    glowColor: 'rgba(59, 130, 246, 0.6)',
-    solidColor: '#3b82f6',
-    icon: '🚗'
-  },
-  {
-    id: '4',
-    name: 'House',
-    amount: 5500,
-    percentage: 15,
-    gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', // Violet gradient
-    glowColor: 'rgba(139, 92, 246, 0.6)',
-    solidColor: '#8b5cf6',
-    icon: '🏠'
-  },
-  {
-    id: '5',
-    name: 'Vacation',
-    amount: 2800,
-    percentage: 8,
-    gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', // Pink gradient (CHANGED from purple)
-    glowColor: 'rgba(236, 72, 153, 0.6)',
-    solidColor: '#ec4899',
-    icon: '✈️'
-  },
-  {
-    id: '6',
-    name: 'Other',
-    amount: 1000,
-    percentage: 2,
-    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Amber gradient (CHANGED from slate)
-    glowColor: 'rgba(245, 158, 11, 0.6)',
-    solidColor: '#f59e0b',
-    icon: '📦'
-  }
+interface SavingsGoal {
+  id: string
+  name: string
+  target_amount: number
+  current_amount: number
+  deadline?: string
+  color?: string
+  icon?: string
+}
+
+interface BubbleChartProps {
+  goals?: SavingsGoal[]
+}
+
+// Default gradients for different positions
+const colorPalette = [
+  { gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', glowColor: 'rgba(16, 185, 129, 0.6)', solidColor: '#10b981' },
+  { gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', glowColor: 'rgba(99, 102, 241, 0.6)', solidColor: '#6366f1' },
+  { gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', glowColor: 'rgba(59, 130, 246, 0.6)', solidColor: '#3b82f6' },
+  { gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', glowColor: 'rgba(139, 92, 246, 0.6)', solidColor: '#8b5cf6' },
+  { gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', glowColor: 'rgba(236, 72, 153, 0.6)', solidColor: '#ec4899' },
+  { gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', glowColor: 'rgba(245, 158, 11, 0.6)', solidColor: '#f59e0b' },
 ]
+
+// Icon mapping based on goal name keywords
+const getIconForGoal = (name: string): string => {
+  const nameLower = name.toLowerCase()
+  if (nameLower.includes('emergency') || nameLower.includes('fund')) return '💰'
+  if (nameLower.includes('stock') || nameLower.includes('invest')) return '📈'
+  if (nameLower.includes('car') || nameLower.includes('vehicle')) return '🚗'
+  if (nameLower.includes('house') || nameLower.includes('home')) return '🏠'
+  if (nameLower.includes('vacation') || nameLower.includes('travel')) return '✈️'
+  if (nameLower.includes('education') || nameLower.includes('school')) return '📚'
+  if (nameLower.includes('wedding')) return '💍'
+  return '📦'
+}
 
 // Calculate bubble size based on amount
 const getBubbleSize = (amount: number): number => {
@@ -107,7 +81,7 @@ const bubblePositions: Record<string, { top: string; left: string }> = {
   '6': { top: '50%', left: '40%' },
 }
 
-export function BubbleChart() {
+export function BubbleChart({ goals = [] }: BubbleChartProps) {
   const [hoveredBubble, setHoveredBubble] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -115,6 +89,52 @@ export function BubbleChart() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Convert goals to bubble data
+  const totalSavings = goals.reduce((sum, g) => sum + Number(g.current_amount), 0)
+
+  const savingsData: BubbleData[] = goals.map((goal, index) => {
+    const amount = Number(goal.current_amount)
+    const percentage = totalSavings > 0 ? (amount / totalSavings) * 100 : 0
+    const colors = colorPalette[index % colorPalette.length]
+
+    return {
+      id: goal.id,
+      name: goal.name,
+      amount,
+      percentage: Math.round(percentage),
+      gradient: colors.gradient,
+      glowColor: colors.glowColor,
+      solidColor: colors.solidColor,
+      icon: goal.icon || getIconForGoal(goal.name),
+    }
+  }).sort((a, b) => b.amount - a.amount) // Sort by amount descending
+
+  // Update bubble size calculation to be dynamic
+  const maxAmount = savingsData.length > 0 ? savingsData[0].amount : 12500
+  const getBubbleSizeDynamic = (amount: number): number => {
+    const minSize = 100
+    const maxSize = 200
+    return minSize + ((amount / maxAmount) * (maxSize - minSize))
+  }
+
+  // Show empty state if no goals
+  if (goals.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Savings Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              No savings goals found. Create your first savings goal to see the distribution!
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -133,8 +153,8 @@ export function BubbleChart() {
           {/* Bubble content */}
           <div ref={containerRef} className="relative w-full h-[600px]">
             {mounted && savingsData.map((bubble, index) => {
-              const bubbleSize = getBubbleSize(bubble.amount)
-              const position = bubblePositions[bubble.id]
+              const bubbleSize = getBubbleSizeDynamic(bubble.amount)
+              const position = bubblePositions[(index + 1).toString()] || { top: '50%', left: '50%' }
               // Increased drag constraints for more movement freedom
               const dragConstraints = {
                 left: -500,

@@ -267,6 +267,59 @@ export interface Database {
           updated_at?: string
         }
       }
+      loans: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          loan_type: 'mortgage' | 'auto' | 'student' | 'personal' | 'credit_card' | 'business' | 'other'
+          principal_amount: number
+          current_balance: number
+          interest_rate: number
+          monthly_payment: number
+          start_date: string
+          end_date: string | null
+          lender: string | null
+          status: 'active' | 'paid_off' | 'deferred'
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          loan_type: 'mortgage' | 'auto' | 'student' | 'personal' | 'credit_card' | 'business' | 'other'
+          principal_amount: number
+          current_balance: number
+          interest_rate?: number
+          monthly_payment?: number
+          start_date: string
+          end_date?: string | null
+          lender?: string | null
+          status?: 'active' | 'paid_off' | 'deferred'
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          loan_type?: 'mortgage' | 'auto' | 'student' | 'personal' | 'credit_card' | 'business' | 'other'
+          principal_amount?: number
+          current_balance?: number
+          interest_rate?: number
+          monthly_payment?: number
+          start_date?: string
+          end_date?: string | null
+          lender?: string | null
+          status?: 'active' | 'paid_off' | 'deferred'
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       budget_status: {
@@ -306,6 +359,16 @@ export interface Database {
           month: string
         }
       }
+      net_worth_summary: {
+        Row: {
+          user_id: string
+          cash_and_accounts: number
+          savings_goals_total: number
+          credit_card_debt: number
+          loans_total: number
+          net_worth: number
+        }
+      }
     }
     Functions: {
       [_ in never]: never
@@ -323,10 +386,12 @@ export type Account = Database['public']['Tables']['accounts']['Row']
 export type Transaction = Database['public']['Tables']['transactions']['Row']
 export type Budget = Database['public']['Tables']['budgets']['Row']
 export type SavingsGoal = Database['public']['Tables']['savings_goals']['Row']
+export type Loan = Database['public']['Tables']['loans']['Row']
 
 export type BudgetStatus = Database['public']['Views']['budget_status']['Row']
 export type MonthlySummary = Database['public']['Views']['monthly_summary']['Row']
 export type CategorySpending = Database['public']['Views']['category_spending']['Row']
+export type NetWorthSummary = Database['public']['Views']['net_worth_summary']['Row']
 
 // Joined types for queries with relationships
 export type TransactionWithCategory = Transaction & {

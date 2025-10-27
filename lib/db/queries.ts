@@ -373,6 +373,97 @@ export const getCurrentMonthBudgets = cache(async (userId: string) => {
   return data
 })
 
+export interface BudgetWithSpending {
+  id: string
+  category: string
+  categoryId: string
+  monthlyLimit: number
+  spent: number
+  remaining: number
+  percentage: number
+  color: string
+  icon: string
+}
+
+export const getBudgetsWithSpending = cache(async (userId: string): Promise<BudgetWithSpending[]> => {
+  const supabase = await createClient()
+  const today = new Date()
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+
+  const firstDayStr = firstDayOfMonth.toISOString().split('T')[0]
+  const lastDayStr = lastDayOfMonth.toISOString().split('T')[0]
+
+  // Get budgets for the current month
+  const { data: budgets, error: budgetsError } = await supabase
+    .from('budgets')
+    .select(`
+      id,
+      monthly_limit,
+      category_id,
+      category:categories(name, icon, color)
+    `)
+    .eq('user_id', userId)
+    .gte('period_start', firstDayStr)
+    .lte('period_start', today.toISOString().split('T')[0])
+
+  if (budgetsError) {
+    console.error('Error fetching budgets:', budgetsError)
+    return []
+  }
+
+  // Get spending for each budget category
+  const budgetsWithSpending = await Promise.all(
+    budgets.map(async (budget: any) => {
+      const { data: transactions } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('user_id', userId)
+        .eq('category_id', budget.category_id)
+        .eq('type', 'expense')
+        .gte('date', firstDayStr)
+        .lte('date', lastDayStr)
+
+      const spent = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0
+      const monthlyLimit = Number(budget.monthly_limit)
+      const remaining = monthlyLimit - spent
+      const percentage = monthlyLimit > 0 ? (spent / monthlyLimit) * 100 : 0
+
+      return {
+        id: budget.id,
+        category: budget.category?.name || 'Unknown',
+        categoryId: budget.category_id,
+        monthlyLimit,
+        spent,
+        remaining,
+        percentage,
+        color: budget.category?.color || 'rgb(156 163 175)',
+        icon: budget.category?.icon || 'dollar',
+      }
+    })
+  )
+
+  return budgetsWithSpending
+})
+
+export interface BudgetSummary {
+  totalBudget: number
+  totalSpent: number
+  totalRemaining: number
+  overBudgetCount: number
+}
+
+export const getBudgetSummary = cache(async (userId: string): Promise<BudgetSummary> => {
+  const budgets = await getBudgetsWithSpending(userId)
+
+  return {
+    totalBudget: budgets.reduce((sum, b) => sum + b.monthlyLimit, 0),
+    totalSpent: budgets.reduce((sum, b) => sum + b.spent, 0),
+    totalRemaining: budgets.reduce((sum, b) => sum + b.remaining, 0),
+    overBudgetCount: budgets.filter(b => b.percentage >= 100).length,
+  }
+})
+
 // =====================================================
 // SAVINGS GOALS QUERIES
 // =====================================================
@@ -410,6 +501,62 @@ export const getActiveSavingsGoals = cache(async (userId: string) => {
   }
 
   return data
+})
+
+export interface SavingsSummary {
+  totalSavings: number
+  monthlyGrowth: number
+  monthlyGrowthPercentage: number
+  topCategoryName: string
+  topCategoryAmount: number
+  topCategoryPercentage: number
+  averageMonthlySavings: number
+}
+
+export const getSavingsSummary = cache(async (userId: string): Promise<SavingsSummary> => {
+  const supabase = await createClient()
+
+  // Get all savings goals
+  const { data: goals } = await supabase
+    .from('savings_goals')
+    .select('*')
+    .eq('user_id', userId)
+
+  const totalSavings = goals?.reduce((sum, g) => sum + Number(g.current_amount), 0) || 0
+
+  // Get last month's total to calculate growth
+  const oneMonthAgo = new Date()
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+
+  // Calculate monthly growth from transactions (net income - expenses for last 30 days)
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
+
+  const { data: recentTransactions } = await supabase
+    .from('transactions')
+    .select('amount, type')
+    .eq('user_id', userId)
+    .gte('date', thirtyDaysAgoStr)
+
+  const recentIncome = recentTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0) || 0
+  const recentExpenses = recentTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0) || 0
+  const monthlyGrowth = recentIncome - recentExpenses
+  const monthlyGrowthPercentage = totalSavings > 0 ? (monthlyGrowth / totalSavings) * 100 : 0
+
+  // Find top category
+  const sortedGoals = [...(goals || [])].sort((a, b) => Number(b.current_amount) - Number(a.current_amount))
+  const topGoal = sortedGoals[0]
+
+  return {
+    totalSavings,
+    monthlyGrowth,
+    monthlyGrowthPercentage,
+    topCategoryName: topGoal?.name || 'Emergency Fund',
+    topCategoryAmount: topGoal ? Number(topGoal.current_amount) : 0,
+    topCategoryPercentage: totalSavings > 0 && topGoal ? (Number(topGoal.current_amount) / totalSavings) * 100 : 0,
+    averageMonthlySavings: monthlyGrowth,
+  }
 })
 
 // =====================================================
@@ -591,4 +738,221 @@ export const getFinancialChartData = cache(async (
       spending: data.spending,
       savings: data.savings,
     }))
+})
+
+// =====================================================
+// LOANS QUERIES
+// =====================================================
+
+export const getLoans = cache(async (userId: string) => {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('loans')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching loans:', error)
+    return []
+  }
+
+  return data
+})
+
+export const getActiveLoans = cache(async (userId: string) => {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('loans')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching active loans:', error)
+    return []
+  }
+
+  return data
+})
+
+export interface LoansSummary {
+  totalDebt: number
+  monthlyPayment: number
+  averageInterestRate: number
+  totalPaid: number
+  activeLoansCount: number
+}
+
+export const getLoansSummary = cache(async (userId: string): Promise<LoansSummary> => {
+  const supabase = await createClient()
+
+  const { data: loans, error } = await supabase
+    .from('loans')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+
+  if (error) {
+    console.error('Error fetching loans summary:', error)
+    return {
+      totalDebt: 0,
+      monthlyPayment: 0,
+      averageInterestRate: 0,
+      totalPaid: 0,
+      activeLoansCount: 0,
+    }
+  }
+
+  const totalDebt = loans.reduce((sum, loan) => sum + Number(loan.current_balance), 0)
+  const monthlyPayment = loans.reduce((sum, loan) => sum + Number(loan.monthly_payment), 0)
+  const totalPrincipal = loans.reduce((sum, loan) => sum + Number(loan.principal_amount), 0)
+  const totalPaid = totalPrincipal - totalDebt
+
+  const totalInterestWeighted = loans.reduce(
+    (sum, loan) => sum + (Number(loan.interest_rate) * Number(loan.current_balance)),
+    0
+  )
+  const averageInterestRate = totalDebt > 0 ? totalInterestWeighted / totalDebt : 0
+
+  return {
+    totalDebt,
+    monthlyPayment,
+    averageInterestRate,
+    totalPaid,
+    activeLoansCount: loans.length,
+  }
+})
+
+export const getLoanDetails = cache(async (loanId: string) => {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('loans')
+    .select('*')
+    .eq('id', loanId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching loan details:', error)
+    return null
+  }
+
+  return data
+})
+
+// =====================================================
+// NET WORTH QUERIES
+// =====================================================
+
+export interface NetWorthBreakdown {
+  assets: {
+    cashAndAccounts: number
+    savingsGoals: number
+    total: number
+  }
+  liabilities: {
+    creditCardDebt: number
+    loans: number
+    total: number
+  }
+  netWorth: number
+}
+
+export const getNetWorth = cache(async (userId: string): Promise<number> => {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('net_worth_summary')
+    .select('net_worth')
+    .eq('user_id', userId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching net worth:', error)
+    return 0
+  }
+
+  return Number(data.net_worth)
+})
+
+export const getNetWorthBreakdown = cache(async (userId: string): Promise<NetWorthBreakdown> => {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('net_worth_summary')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
+
+  if (error) {
+    console.error('Error fetching net worth breakdown:', error)
+    return {
+      assets: {
+        cashAndAccounts: 0,
+        savingsGoals: 0,
+        total: 0,
+      },
+      liabilities: {
+        creditCardDebt: 0,
+        loans: 0,
+        total: 0,
+      },
+      netWorth: 0,
+    }
+  }
+
+  const cashAndAccounts = Number(data.cash_and_accounts)
+  const savingsGoals = Number(data.savings_goals_total)
+  const creditCardDebt = Number(data.credit_card_debt)
+  const loans = Number(data.loans_total)
+
+  return {
+    assets: {
+      cashAndAccounts,
+      savingsGoals,
+      total: cashAndAccounts + savingsGoals,
+    },
+    liabilities: {
+      creditCardDebt,
+      loans,
+      total: creditCardDebt + loans,
+    },
+    netWorth: Number(data.net_worth),
+  }
+})
+
+export interface NetWorthHistoryPoint {
+  date: string
+  netWorth: number
+}
+
+export const getNetWorthHistory = cache(async (
+  userId: string,
+  months: number = 6
+): Promise<NetWorthHistoryPoint[]> => {
+  // This is a simplified version - in a real app, you'd store historical snapshots
+  // For now, we'll just return the current net worth
+  const netWorth = await getNetWorth(userId)
+
+  const history: NetWorthHistoryPoint[] = []
+  const today = new Date()
+
+  for (let i = months - 1; i >= 0; i--) {
+    const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
+    const dateStr = date.toISOString().split('T')[0]
+
+    // For demo purposes, add some variation
+    // In a real app, you'd fetch actual historical data
+    const variation = Math.random() * 0.1 - 0.05 // +/- 5% variation
+    history.push({
+      date: dateStr,
+      netWorth: netWorth * (1 + variation * (months - i) / months),
+    })
+  }
+
+  return history
 })
