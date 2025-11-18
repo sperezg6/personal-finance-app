@@ -14,6 +14,7 @@ interface DashboardMetricsProps {
   dailyData?: Array<{ date: string; income: number; expenses: number; net: number }>
 }
 
+
 export function DashboardMetrics({ metrics, dailyData = [] }: DashboardMetricsProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
