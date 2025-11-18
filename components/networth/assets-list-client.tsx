@@ -102,11 +102,11 @@ export function AssetsListClient({ accounts, savingsGoals, breakdown }: AssetsLi
                     <div>
                       <p className="font-medium text-sm">{goal.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {((Number(goal.current_amount) / Number(goal.target_amount)) * 100).toFixed(0)}% of goal
+                        {((Number(goal.balance || 0) / Number(goal.target_amount || 1)) * 100).toFixed(0)}% of goal
                       </p>
                     </div>
                   </div>
-                  <span className="font-semibold text-emerald-600">${formatCurrency(Number(goal.current_amount))}</span>
+                  <span className="font-semibold text-emerald-600">${formatCurrency(Number(goal.balance || 0))}</span>
                 </div>
               ))}
               {savingsGoals.filter(g => !g.is_completed).length === 0 && (

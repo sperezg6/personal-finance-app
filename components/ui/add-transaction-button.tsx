@@ -19,6 +19,21 @@ export interface AddButtonProps {
    * Custom className for the button
    */
   className?: string
+
+  /**
+   * Available categories for the transaction form
+   */
+  categories?: string[]
+
+  /**
+   * Available payment methods for the transaction form
+   */
+  paymentMethods?: string[]
+
+  /**
+   * Available savings accounts for savings transactions
+   */
+  savingsAccounts?: Array<{ id: string; name: string; icon?: string | null }>
 }
 
 /**
@@ -29,7 +44,7 @@ export interface AddButtonProps {
  * @example
  * <AddButton onSubmit={(data) => console.log('New transaction:', data)} />
  */
-export function AddButton({ onSubmit, className, label }: AddButtonProps) {
+export function AddButton({ onSubmit, className, label, categories, paymentMethods, savingsAccounts }: AddButtonProps) {
   return (
     <AddTransactionDialog
       label={label}
@@ -37,6 +52,9 @@ export function AddButton({ onSubmit, className, label }: AddButtonProps) {
       size="lg"
       onSubmit={onSubmit}
       className={className}
+      categories={categories}
+      paymentMethods={paymentMethods}
+      savingsAccounts={savingsAccounts}
     />
   )
 }

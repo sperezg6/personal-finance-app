@@ -13,8 +13,7 @@ import {
   DollarSign,
   Tag,
   CreditCard,
-  Save,
-  ChevronDown
+  Save
 } from "lucide-react"
 import {
   Select,

@@ -8,7 +8,6 @@ import { Eye, EyeOff, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MeshGradient } from '@paper-design/shaders-react';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { useRouter } from 'next/navigation';
 
 export function SignIn() {
   const [showPassword, setShowPassword] = React.useState(false);
@@ -20,7 +19,6 @@ export function SignIn() {
   const [success, setSuccess] = React.useState<string | null>(null);
 
   const { signIn, signInWithGoogle } = useAuth();
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +35,9 @@ export function SignIn() {
         setSuccess('Successfully signed in! Redirecting...');
         // The useAuth hook handles the redirect
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }
@@ -56,8 +55,9 @@ export function SignIn() {
         setIsLoading(false);
       }
       // For OAuth, loading state will remain until redirect happens
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'An unexpected error occurred.');
       setIsLoading(false);
     }
   };
@@ -234,7 +234,7 @@ export function SignIn() {
 
           {/* Sign Up Link */}
           <p className="text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <a
               href="/signup"
               className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 font-medium transition-colors"

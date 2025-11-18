@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff, Wallet } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { MeshGradient } from '@paper-design/shaders-react';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useRouter } from 'next/navigation';
@@ -63,8 +62,9 @@ export function SignUp() {
           router.push('/login');
         }, 3000);
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }
@@ -82,8 +82,9 @@ export function SignUp() {
         setIsLoading(false);
       }
       // For OAuth, loading state will remain until redirect happens
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'An unexpected error occurred.');
       setIsLoading(false);
     }
   };

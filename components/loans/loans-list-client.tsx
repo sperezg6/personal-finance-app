@@ -6,51 +6,31 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  Home,
-  Car,
-  GraduationCap,
   CreditCard,
-  Building2,
-  Briefcase,
-  MoreHorizontal,
   Pencil,
   Check,
-  X
+  X,
+  Calendar,
+  TrendingUp,
+  Trash2,
+  Loader2
 } from "lucide-react"
-import type { Loan } from "@/lib/supabase/database.types"
-import { updateLoan } from "@/lib/db/actions"
+import type { LoanWithNextPayment } from "@/lib/db/queries"
+import { updateLoan, deleteLoan } from "@/lib/db/actions"
 import { useRouter } from "next/navigation"
-
-const loanTypeIcons: Record<string, React.ElementType> = {
-  'mortgage': Home,
-  'auto': Car,
-  'student': GraduationCap,
-  'personal': CreditCard,
-  'credit_card': CreditCard,
-  'business': Briefcase,
-  'other': Building2,
-}
-
-const loanTypeColors: Record<string, string> = {
-  'mortgage': 'rgb(99 102 241)', // indigo
-  'auto': 'rgb(59 130 246)', // blue
-  'student': 'rgb(16 185 129)', // emerald
-  'personal': 'rgb(139 92 246)', // violet
-  'credit_card': 'rgb(239 68 68)', // red
-  'business': 'rgb(249 115 22)', // orange
-  'other': 'rgb(156 163 175)', // gray
-}
+import { motion, AnimatePresence } from "framer-motion"
 
 interface LoansListClientProps {
-  initialLoans: Loan[]
+  initialLoansWithPayments: LoanWithNextPayment[]
 }
 
-export function LoansListClient({ initialLoans }: LoansListClientProps) {
+export function LoansListClient({ initialLoansWithPayments }: LoansListClientProps) {
   const router = useRouter()
-  const [loans, setLoans] = useState(initialLoans)
+  const [loansWithPayments, setLoansWithPayments] = useState(initialLoansWithPayments)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
@@ -64,9 +44,9 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
     return Math.round(((original - current) / original) * 100)
   }
 
-  const handleEdit = (loan: Loan) => {
-    setEditingId(loan.id)
-    setEditValue(loan.current_balance.toString())
+  const handleEdit = (loanData: LoanWithNextPayment) => {
+    setEditingId(loanData.loan.id)
+    setEditValue(loanData.loan.current_balance.toString())
   }
 
   const handleSave = async (id: string) => {
@@ -76,15 +56,17 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
       const result = await updateLoan(id, newBalance)
       if (!result.error) {
         // Optimistically update the UI
-        setLoans(loans.map(loan => {
-          if (loan.id === id) {
+        setLoansWithPayments(loansWithPayments.map(loanData => {
+          if (loanData.loan.id === id) {
             return {
-              ...loan,
-              current_balance: newBalance,
-              status: newBalance <= 0 ? 'paid_off' : 'active'
+              ...loanData,
+              loan: {
+                ...loanData.loan,
+                current_balance: newBalance
+              }
             }
           }
-          return loan
+          return loanData
         }))
         router.refresh()
       }
@@ -98,7 +80,17 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
     setEditValue('')
   }
 
-  if (loans.length === 0) {
+  const handleDelete = async (id: string) => {
+    setIsDeleting(id)
+    const result = await deleteLoan(id)
+    if (!result.error) {
+      setLoansWithPayments(loansWithPayments.filter(loanData => loanData.loan.id !== id))
+      router.refresh()
+    }
+    setIsDeleting(null)
+  }
+
+  if (loansWithPayments.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">
@@ -110,19 +102,34 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
 
   return (
     <div className="space-y-4">
-      {loans.map((loan) => {
-        const Icon = loanTypeIcons[loan.loan_type] || MoreHorizontal
-        const color = loanTypeColors[loan.loan_type] || 'rgb(156 163 175)'
-        const progress = calculateProgress(
-          Number(loan.current_balance),
-          Number(loan.principal_amount)
-        )
-        const isEditing = editingId === loan.id
-        const isPaidOff = loan.status === 'paid_off'
+      <AnimatePresence mode="popLayout">
+        {loansWithPayments.map((loanData) => {
+          const { loan, nextPayment, paymentsCompleted, totalPayments, progressPercentage } = loanData
+          const Icon = CreditCard // Default icon since loan_type doesn't exist
+          const color = 'rgb(99 102 241)' // Default color
+          const progress = calculateProgress(
+            Number(loan.current_balance),
+            Number(loan.principal)
+          )
+          const isEditing = editingId === loan.id
+          const isPaidOff = Number(loan.current_balance) <= 0
 
-        return (
-          <Card key={loan.id} className="transition-all hover:shadow-md">
-            <CardContent className="p-6">
+          return (
+            <motion.div
+              key={loan.id}
+              layout
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
+              exit={{
+                opacity: 0,
+                height: 0,
+                marginBottom: 0,
+                transition: { duration: 0.3, ease: "easeInOut" }
+              }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
+              <Card className="transition-all hover:shadow-md">
+                <CardContent className="p-6">
               <div className="space-y-4">
                 {/* Loan Header Row */}
                 <div className="flex items-center justify-between gap-4">
@@ -139,9 +146,6 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
                           </Badge>
                         )}
                       </div>
-                      {loan.lender && (
-                        <p className="text-sm text-muted-foreground">{loan.lender}</p>
-                      )}
                     </div>
                   </div>
 
@@ -167,14 +171,30 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
                       )}
                     </div>
                     {!isEditing ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleEdit(loan)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleEdit(loanData)}
+                          disabled={isDeleting === loan.id}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDelete(loan.id)}
+                          disabled={isDeleting === loan.id}
+                        >
+                          {isDeleting === loan.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     ) : (
                       <div className="flex gap-1">
                         <Button
@@ -211,6 +231,26 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
                   />
                 </div>
 
+                {/* Payment Progress & Next Payment Info */}
+                {totalPayments > 0 && (
+                  <div className="flex items-center justify-between text-sm bg-muted/30 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-finance-success" style={{ color }} />
+                      <span className="text-muted-foreground">Progress:</span>
+                      <span className="font-semibold">{paymentsCompleted}/{totalPayments} payments ({progressPercentage}%)</span>
+                    </div>
+                    {nextPayment && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Next:</span>
+                        <span className="font-semibold">{new Date(nextPayment.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        <span className="text-muted-foreground">-</span>
+                        <span className="font-semibold">${formatCurrency(Number(nextPayment.amount_due))}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Details Row */}
                 <div className="flex items-center justify-between text-sm pt-2 border-t">
                   <div className="flex gap-6">
@@ -223,25 +263,22 @@ export function LoansListClient({ initialLoans }: LoansListClientProps) {
                       <span className="font-semibold ml-1.5">${formatCurrency(Number(loan.monthly_payment))}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Type:</span>
-                      <span className="font-semibold ml-1.5 capitalize">{loan.loan_type.replace('_', ' ')}</span>
+                      <span className="text-muted-foreground">Term:</span>
+                      <span className="font-semibold ml-1.5">{loan.term_months} months</span>
                     </div>
                   </div>
-                  {loan.end_date && (
-                    <div className="text-muted-foreground">
-                      Payoff: {new Date(loan.end_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        )
-      })}
+        </motion.div>
+          )
+        })}
+      </AnimatePresence>
 
       {/* Simple Summary Footer */}
       <div className="text-center text-sm text-muted-foreground pt-4">
-        Managing {loans.length} active {loans.length === 1 ? 'loan' : 'loans'}
+        Managing {loansWithPayments.length} active {loansWithPayments.length === 1 ? 'loan' : 'loans'}
       </div>
     </div>
   )

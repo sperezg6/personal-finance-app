@@ -43,12 +43,12 @@ export function useAuth() {
       router.push('/')
       router.refresh()
       return { error: null }
-    } catch (error: any) {
-      return { error }
+    } catch (error) {
+      return { error: error as Error }
     }
   }
 
-  const signUp = async (email: string, password: string, metadata?: Record<string, any>) => {
+  const signUp = async (email: string, password: string, metadata?: Record<string, string>) => {
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -59,8 +59,8 @@ export function useAuth() {
       })
       if (error) throw error
       return { error: null }
-    } catch (error: any) {
-      return { error }
+    } catch (error) {
+      return { error: error as Error }
     }
   }
 
@@ -80,8 +80,8 @@ export function useAuth() {
       })
       if (error) throw error
       return { error: null }
-    } catch (error: any) {
-      return { error }
+    } catch (error) {
+      return { error: error as Error }
     }
   }
 
@@ -92,8 +92,8 @@ export function useAuth() {
       })
       if (error) throw error
       return { error: null }
-    } catch (error: any) {
-      return { error }
+    } catch (error) {
+      return { error: error as Error }
     }
   }
 

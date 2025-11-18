@@ -1,10 +1,10 @@
 import { NavBarWrapper } from "@/components/navbar-wrapper"
 import { BlurFade } from "@/components/ui/blur-fade"
 import { Card, CardContent } from "@/components/ui/card"
-import { AddButton } from "@/components/ui/add-transaction-button"
+import { LoansPageHeader } from "@/components/loans/loans-page-header"
 import { DollarSign, TrendingDown, Calendar, CreditCard } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
-import { getLoansSummary, getActiveLoans } from "@/lib/db/queries"
+import { getLoansSummary, getLoansWithPayments } from "@/lib/db/queries"
 import { LoansListClient } from "@/components/loans/loans-list-client"
 
 export default async function LoansPage() {
@@ -39,7 +39,7 @@ export default async function LoansPage() {
 
   // Fetch loans data from Supabase
   const summary = await getLoansSummary(user.id)
-  const loans = await getActiveLoans(user.id)
+  const loansWithPayments = await getLoansWithPayments(user.id)
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
@@ -94,7 +94,7 @@ export default async function LoansPage() {
             </BlurFade>
           </div>
           <BlurFade delay={0.75} inView>
-            <AddButton label="Add Loan" />
+            <LoansPageHeader />
           </BlurFade>
         </div>
 
@@ -131,7 +131,7 @@ export default async function LoansPage() {
 
         {/* Loans List */}
         <BlurFade delay={1.25} inView>
-          <LoansListClient initialLoans={loans} />
+          <LoansListClient initialLoansWithPayments={loansWithPayments} />
         </BlurFade>
       </div>
     </main>

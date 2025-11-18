@@ -37,7 +37,7 @@ export function FilterPanel({
     onFiltersChange(emptyFilters)
   }
 
-  const updateFilter = (key: keyof TransactionFilters, value: any) => {
+  const updateFilter = (key: keyof TransactionFilters, value: string | string[] | number | TransactionType | undefined) => {
     setLocalFilters(prev => ({ ...prev, [key]: value }))
   }
 

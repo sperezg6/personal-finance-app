@@ -11,38 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AddButton } from "@/components/ui/add-transaction-button"
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, TrendingDown, TrendingUp, Hash, MoreVertical, Pencil, Trash2, Copy } from "lucide-react"
 import { useState } from "react"
-import { deleteTransaction, duplicateTransaction, updateTransaction } from "@/lib/db/actions"
+import { deleteTransaction, duplicateTransaction, updateTransaction, createTransaction, type UpdateTransactionInput } from "@/lib/db/actions"
 import { useRouter } from "next/navigation"
-import type { TransactionWithCategory } from "@/lib/supabase/database.types"
+import type { TransactionWithCategory, Category } from "@/lib/supabase/database.types"
 import type { DashboardMetrics } from "@/lib/db/queries"
+import type { TransactionFormData } from "@/components/forms/add-transaction-form"
 
 interface TransactionsClientProps {
   initialTransactions: TransactionWithCategory[]
   metrics: DashboardMetrics
+  categories: Category[]
+  paymentMethods?: { id: string; name: string }[]
+  savingsAccounts?: Array<{ id: string; name: string; icon?: string | null }>
 }
 
-const categories = [
-  'Salary',
-  'Freelance',
-  'Food',
-  'Transport',
-  'Rent',
-  'Entertainment',
-  'Shopping',
-  'Utilities',
-  'Healthcare',
-  'Other'
-]
-
-const paymentMethods = [
-  'Cash',
-  'Credit Card',
-  'Debit Card',
-  'Bank Transfer',
-  'PayPal'
-]
-
-export function TransactionsClient({ initialTransactions, metrics }: TransactionsClientProps) {
+export function TransactionsClient({ initialTransactions, metrics, categories, paymentMethods = [], savingsAccounts = [] }: TransactionsClientProps) {
   const router = useRouter()
   const [transactions, setTransactions] = useState(initialTransactions)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
@@ -70,12 +53,44 @@ export function TransactionsClient({ initialTransactions, metrics }: Transaction
   }
 
   const handleUpdate = async (id: string, field: string, value: string | number) => {
-    const update: Record<string, string | number> = { id }
-    update[field] = value
+    const update: Partial<UpdateTransactionInput> & { id: string } = { id }
+    if (field === 'date' || field === 'description' || field === 'category' || field === 'paymentMethod' || field === 'notes') {
+      update[field] = value as string
+    } else if (field === 'amount') {
+      update.amount = value as number
+    } else if (field === 'type') {
+      update.type = value as 'income' | 'expense'
+    }
 
-    const result = await updateTransaction(update)
+    const result = await updateTransaction(update as UpdateTransactionInput)
     if (!result.error) {
       router.refresh()
+    }
+  }
+
+  const handleTransactionSubmit = async (formData: TransactionFormData) => {
+    // Create the transaction with the proper structure
+    const result = await createTransaction({
+      date: formData.date,
+      description: formData.description,
+      amount: parseFloat(formData.amount),
+      type: formData.type,
+      category: formData.category,
+      paymentMethod: formData.paymentMethod || undefined,
+      notes: formData.tags || undefined,
+      accountId: formData.savingsAccountId || undefined,
+    })
+
+    if (result.data) {
+      // Immediately refresh the page to show the new transaction
+      router.refresh()
+
+      // Small delay to ensure the refresh completes, then reload the page
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
+    } else {
+      console.error('Error creating transaction:', result.error)
     }
   }
 
@@ -157,19 +172,25 @@ export function TransactionsClient({ initialTransactions, metrics }: Transaction
           <CardContent className="p-0">
             <div className="p-6 border-b flex items-center justify-between">
               <h2 className="text-2xl font-bold">Recent Transactions</h2>
-              <AddButton label="Add Transactions" />
+              <AddButton
+                label="Add Transactions"
+                onSubmit={handleTransactionSubmit}
+                categories={categories.map(cat => cat.name)}
+                paymentMethods={paymentMethods.map(pm => pm.name)}
+                savingsAccounts={savingsAccounts}
+              />
             </div>
-            <div className="overflow-auto max-h-[600px]">
-              <Table>
+            <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+              <Table className="min-w-full">
                 <TableHeader className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
                   <TableRow>
-                    <TableHead className="font-semibold">Date</TableHead>
-                    <TableHead className="font-semibold">Description</TableHead>
-                    <TableHead className="font-semibold">Category</TableHead>
-                    <TableHead className="font-semibold">Payment Method</TableHead>
-                    <TableHead className="font-semibold text-right">Amount</TableHead>
-                    <TableHead className="font-semibold">Type</TableHead>
-                    <TableHead className="font-semibold text-center">Actions</TableHead>
+                    <TableHead className="font-semibold min-w-[150px]">Date</TableHead>
+                    <TableHead className="font-semibold min-w-[200px]">Description</TableHead>
+                    <TableHead className="font-semibold min-w-[180px]">Category</TableHead>
+                    <TableHead className="font-semibold min-w-[180px]">Payment Method</TableHead>
+                    <TableHead className="font-semibold text-right min-w-[120px]">Amount</TableHead>
+                    <TableHead className="font-semibold min-w-[120px]">Type</TableHead>
+                    <TableHead className="font-semibold text-center min-w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -195,7 +216,7 @@ export function TransactionsClient({ initialTransactions, metrics }: Transaction
                         </TableCell>
                         <TableCell>
                           <Input
-                            defaultValue={transaction.description}
+                            defaultValue={transaction.description || ''}
                             onBlur={(e) => handleUpdate(transaction.id, 'description', e.target.value)}
                             className="min-w-[200px] h-8 text-sm"
                           />
@@ -205,48 +226,52 @@ export function TransactionsClient({ initialTransactions, metrics }: Transaction
                             defaultValue={transaction.category?.name}
                             onValueChange={(value) => handleUpdate(transaction.id, 'category', value)}
                           >
-                            <SelectTrigger className="w-[140px] h-8 text-sm">
+                            <SelectTrigger className="w-[180px] h-8 text-sm">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {categories.map(cat => (
-                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </TableCell>
                         <TableCell>
                           <Select
-                            defaultValue={transaction.payment_method || undefined}
+                            defaultValue={transaction.payment_method?.name || undefined}
                             onValueChange={(value) => handleUpdate(transaction.id, 'paymentMethod', value)}
                           >
-                            <SelectTrigger className="w-[140px] h-8 text-sm">
-                              <SelectValue />
+                            <SelectTrigger className="w-[180px] h-8 text-sm">
+                              <SelectValue placeholder="Select payment" />
                             </SelectTrigger>
                             <SelectContent>
                               {paymentMethods.map(method => (
-                                <SelectItem key={method} value={method}>{method}</SelectItem>
+                                <SelectItem key={method.id} value={method.name}>{method.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </TableCell>
                         <TableCell className="text-right font-semibold">
-                          <span className={`font-mono ${transaction.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
-                            {transaction.type === 'income' ? '+' : '-'}${formatCurrency(Number(transaction.amount))}
+                          <span className={`font-mono ${
+                            transaction.type === 'income' ? 'text-emerald-600' :
+                            'text-red-600'
+                          }`}>
+                            {transaction.type === 'expense' ? '-' : '+'}${formatCurrency(Number(transaction.amount))}
                           </span>
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={transaction.type === 'income' ? 'default' : 'destructive'}
-                            className={transaction.type === 'income'
-                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            variant={transaction.type === 'expense' ? 'destructive' : 'default'}
+                            className={
+                              transaction.type === 'income'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                : 'bg-red-100 text-red-700 hover:bg-red-200'
                             }
                           >
-                            {transaction.type === 'income' ? (
-                              <ArrowUpRight className="size-3 mr-1" />
-                            ) : (
+                            {transaction.type === 'expense' ? (
                               <ArrowDownRight className="size-3 mr-1" />
+                            ) : (
+                              <ArrowUpRight className="size-3 mr-1" />
                             )}
                             {transaction.type}
                           </Badge>

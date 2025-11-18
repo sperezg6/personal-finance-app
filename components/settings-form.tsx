@@ -44,7 +44,7 @@ export function SettingsForm({ profile }: SettingsFormProps) {
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(false), 3000)
       }
-    } catch (err) {
+    } catch {
       setError('Failed to update profile. Please try again.')
     } finally {
       setIsLoading(false)

@@ -9,7 +9,6 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
 const defaultData = Array.from({ length: 15 }, () => ({ value: Math.random() * 5000 + 1000 }));
 
 interface AreaChartsProps {
-  userId?: string;
   income?: number;
   savings?: number;
   spending?: number;
@@ -19,7 +18,6 @@ interface AreaChartsProps {
 }
 
 export default function AreaCharts({
-  userId,
   income = 6238,
   savings = 6202,
   spending = 18945,
@@ -42,7 +40,7 @@ export default function AreaCharts({
     {
       title: 'Savings',
       period: 'Last 28 days',
-      value: savings.toLocaleString(),
+      value: `$${savings.toLocaleString()}`,
       timestamp: '3h ago',
       data: savingsData,
       color: 'rgb(59 130 246)', // blue-500
@@ -52,7 +50,7 @@ export default function AreaCharts({
     {
       title: 'Spending',
       period: 'Last 28 days',
-      value: spending.toLocaleString(),
+      value: `$${spending.toLocaleString()}`,
       timestamp: '1h ago',
       data: spendingData,
       color: 'rgb(239 68 68)', // red 500
@@ -83,7 +81,7 @@ export default function AreaCharts({
                       <div className="text-sm text-muted-foreground whitespace-nowrap">{card.period}</div>
 
                       {/* Value */}
-                      <div className="text-3xl font-bold text-foreground tracking-tight">{card.value}</div>
+                      <div className="text-3xl font-bold text-foreground tracking-tight font-mono">{card.value}</div>
                     </div>
 
                     {/* Chart */}

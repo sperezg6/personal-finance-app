@@ -1,7 +1,7 @@
 import { NavBarWrapper } from "@/components/navbar-wrapper"
 import { BlurFade } from "@/components/ui/blur-fade"
 import { Card, CardContent } from "@/components/ui/card"
-import { AddButton } from "@/components/ui/add-transaction-button"
+import { AddBudgetButton } from "@/components/budget/add-budget-button"
 import { BarChartComponent } from '@/components/charts/bar-chart'
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
@@ -41,6 +41,24 @@ export default async function BudgetPage() {
   // Fetch budget data from Supabase
   const summary = await getBudgetSummary(user.id)
   const budgets = await getBudgetsWithSpending(user.id)
+
+  // Fetch expense categories for the budget form
+  const { data: expenseCategories } = await supabase
+    .from('categories')
+    .select('name')
+    .eq('user_id', user.id)
+    .eq('type', 'expense')
+    .order('name')
+
+  const categoryNames = expenseCategories?.map(cat => cat.name) || []
+
+  // Transform budget data for the bar chart
+  const chartData = budgets.map(budget => ({
+    category: budget.category,
+    budget: budget.monthlyLimit,
+    spent: budget.spent,
+    color: budget.color
+  }))
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
@@ -105,7 +123,7 @@ export default async function BudgetPage() {
             </BlurFade>
           </div>
           <BlurFade delay={0.75} inView>
-            <AddButton label="Add Budget" />
+            <AddBudgetButton categories={categoryNames} />
           </BlurFade>
         </div>
 
@@ -149,7 +167,7 @@ export default async function BudgetPage() {
 
         {/* Budget Summary Overview */}
         <BlurFade delay={1.25} inView>
-          <BarChartComponent />
+          <BarChartComponent data={chartData} />
         </BlurFade>
 
         {/* Budget Cards with Circular Progress */}

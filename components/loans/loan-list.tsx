@@ -108,7 +108,7 @@ export function LoanList() {
   return (
     <div className="space-y-6">
       {loans.map((loan) => {
-        const Icon = loan.icon
+        const IconComponent = loan.icon as React.ComponentType<{ className?: string; style?: React.CSSProperties }>
         const config = statusConfig[loan.status]
         const progress = calculateProgress(loan.currentBalance, loan.originalAmount)
         const paidAmount = loan.originalAmount - loan.currentBalance
@@ -124,7 +124,7 @@ export function LoanList() {
                       className="p-3 rounded-xl"
                       style={{ backgroundColor: `${config.color}20` }}
                     >
-                      <Icon className="size-6" style={{ color: config.color }} />
+                      <IconComponent className="size-6" style={{ color: config.color }} />
                     </div>
                     <div>
                       <h3 className="text-lg font-bold">{loan.name}</h3>

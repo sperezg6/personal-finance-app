@@ -38,6 +38,21 @@ export interface AddTransactionDialogProps {
    * Custom className for the button
    */
   className?: string
+
+  /**
+   * Available categories for the transaction form
+   */
+  categories?: string[]
+
+  /**
+   * Available payment methods for the transaction form
+   */
+  paymentMethods?: string[]
+
+  /**
+   * Available savings accounts for savings transactions
+   */
+  savingsAccounts?: Array<{ id: string; name: string; icon?: string | null }>
 }
 
 /**
@@ -65,6 +80,9 @@ export function AddTransactionDialog({
   size = 'default',
   onSubmit,
   className,
+  categories,
+  paymentMethods,
+  savingsAccounts,
 }: AddTransactionDialogProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -89,7 +107,14 @@ export function AddTransactionDialog({
         onClick={() => setOpen(true)}
         className={className}
       />
-      <AddTransactionForm open={open} onOpenChange={setOpen} onSubmit={handleSubmit} />
+      <AddTransactionForm
+        open={open}
+        onOpenChange={setOpen}
+        onSubmit={handleSubmit}
+        categories={categories}
+        paymentMethods={paymentMethods}
+        savingsAccounts={savingsAccounts}
+      />
     </>
   )
 }

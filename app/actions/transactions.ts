@@ -64,7 +64,7 @@ export async function createTransaction(data: {
     return { success: true, data: transaction }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     console.error('Unexpected error creating transaction:', error)
     return { success: false, error: 'Failed to create transaction' }
@@ -196,7 +196,7 @@ export async function createBulkTransactions(transactions: Array<{
     return { success: true, data, count: data.length }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { success: false, error: error.errors[0].message }
+      return { success: false, error: error.issues[0].message }
     }
     console.error('Unexpected error creating bulk transactions:', error)
     return { success: false, error: 'Failed to create transactions' }

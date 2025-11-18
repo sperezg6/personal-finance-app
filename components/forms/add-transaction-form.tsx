@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { TransactionType } from '@/types'
+import { TransactionType } from '@/lib/supabase/database.types'
 
 /**
  * Form data interface for transaction creation
@@ -33,6 +33,8 @@ export interface TransactionFormData {
   type: TransactionType
   description: string
   tags: string
+  paymentMethod: string
+  savingsAccountId?: string
 }
 
 /**
@@ -59,12 +61,27 @@ export interface AddTransactionFormProps {
    * Initial values for the form (optional, for editing)
    */
   initialValues?: Partial<TransactionFormData>
+
+  /**
+   * Available categories (optional, uses default if not provided)
+   */
+  categories?: string[]
+
+  /**
+   * Available payment methods (optional)
+   */
+  paymentMethods?: string[]
+
+  /**
+   * Available savings accounts (for savings transactions)
+   */
+  savingsAccounts?: Array<{ id: string; name: string; icon?: string | null }>
 }
 
 /**
- * Available transaction categories
+ * Default transaction categories (fallback)
  */
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   'Groceries',
   'Dining',
   'Transportation',
@@ -76,6 +93,18 @@ const CATEGORIES = [
   'Salary',
   'Investment',
   'Other',
+]
+
+/**
+ * Default payment methods (fallback)
+ */
+const DEFAULT_PAYMENT_METHODS = [
+  'Efectivo',
+  'Tarjeta de Crédito',
+  'Tarjeta de Débito',
+  'Transferencia Bancaria',
+  'PayPal',
+  'Otro',
 ]
 
 /**
@@ -98,6 +127,10 @@ function validateForm(data: TransactionFormData): Record<string, string> {
 
   if (!data.type) {
     errors.type = 'Transaction type is required'
+  }
+
+  if (!data.paymentMethod) {
+    errors.paymentMethod = 'Payment method is required'
   }
 
   return errors
@@ -123,6 +156,9 @@ export function AddTransactionForm({
   onOpenChange,
   onSubmit,
   initialValues,
+  categories = DEFAULT_CATEGORIES,
+  paymentMethods = DEFAULT_PAYMENT_METHODS,
+  savingsAccounts = [],
 }: AddTransactionFormProps) {
   const [formData, setFormData] = React.useState<TransactionFormData>({
     date: initialValues?.date || new Date().toISOString().split('T')[0],
@@ -131,6 +167,8 @@ export function AddTransactionForm({
     type: initialValues?.type || 'expense',
     description: initialValues?.description || '',
     tags: initialValues?.tags || '',
+    paymentMethod: initialValues?.paymentMethod || '',
+    savingsAccountId: initialValues?.savingsAccountId || '',
   })
 
   const [errors, setErrors] = React.useState<Record<string, string>>({})
@@ -146,6 +184,8 @@ export function AddTransactionForm({
         type: 'expense',
         description: '',
         tags: '',
+        paymentMethod: '',
+        savingsAccountId: '',
       })
       setErrors({})
       setIsSubmitting(false)
@@ -218,6 +258,12 @@ export function AddTransactionForm({
                   Income
                 </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="savings" id="savings" />
+                <Label htmlFor="savings" className="font-normal cursor-pointer">
+                  Savings
+                </Label>
+              </div>
             </RadioGroup>
             {errors.type && (
               <p className="text-sm text-destructive" role="alert">
@@ -225,6 +271,40 @@ export function AddTransactionForm({
               </p>
             )}
           </div>
+
+          {/* Savings Account (only show for savings transactions) */}
+          {false && (
+            <div className="space-y-2">
+              <Label htmlFor="savingsAccountId">Savings Account</Label>
+              <Select
+                value={formData.savingsAccountId}
+                onValueChange={(value) => handleChange('savingsAccountId', value)}
+              >
+                <SelectTrigger
+                  id="savingsAccountId"
+                  aria-invalid={!!errors.savingsAccountId}
+                  aria-describedby={errors.savingsAccountId ? 'savingsAccountId-error' : undefined}
+                >
+                  <SelectValue placeholder="Select a savings account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {savingsAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{account.icon || '💰'}</span>
+                        <span>{account.name}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.savingsAccountId && (
+                <p id="savingsAccountId-error" className="text-sm text-destructive" role="alert">
+                  {errors.savingsAccountId}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Date */}
           <div className="space-y-2">
@@ -285,7 +365,7 @@ export function AddTransactionForm({
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((category) => (
+                {categories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
@@ -295,6 +375,35 @@ export function AddTransactionForm({
             {errors.category && (
               <p id="category-error" className="text-sm text-destructive" role="alert">
                 {errors.category}
+              </p>
+            )}
+          </div>
+
+          {/* Payment Method */}
+          <div className="space-y-2">
+            <Label htmlFor="paymentMethod">Payment Method</Label>
+            <Select
+              value={formData.paymentMethod}
+              onValueChange={(value) => handleChange('paymentMethod', value)}
+            >
+              <SelectTrigger
+                id="paymentMethod"
+                aria-invalid={!!errors.paymentMethod}
+                aria-describedby={errors.paymentMethod ? 'paymentMethod-error' : undefined}
+              >
+                <SelectValue placeholder="Select payment method" />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentMethods.map((method) => (
+                  <SelectItem key={method} value={method}>
+                    {method}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.paymentMethod && (
+              <p id="paymentMethod-error" className="text-sm text-destructive" role="alert">
+                {errors.paymentMethod}
               </p>
             )}
           </div>

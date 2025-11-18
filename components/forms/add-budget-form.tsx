@@ -61,12 +61,17 @@ export interface AddBudgetFormProps {
    * Initial values for the form (optional, for editing)
    */
   initialValues?: Partial<BudgetFormData>
+
+  /**
+   * List of available categories to choose from
+   */
+  categories?: string[]
 }
 
 /**
- * Available budget categories
+ * Default budget categories (fallback)
  */
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   'Groceries',
   'Dining',
   'Transportation',
@@ -159,6 +164,7 @@ export function AddBudgetForm({
   onOpenChange,
   onSubmit,
   initialValues,
+  categories = DEFAULT_CATEGORIES,
 }: AddBudgetFormProps) {
   const [formData, setFormData] = React.useState<BudgetFormData>({
     category: initialValues?.category || '',
@@ -247,7 +253,7 @@ export function AddBudgetForm({
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((category) => (
+                {categories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>

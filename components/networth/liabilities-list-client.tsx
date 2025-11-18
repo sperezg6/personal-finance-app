@@ -18,15 +18,6 @@ export function LiabilitiesListClient({ loans, breakdown }: LiabilitiesListClien
     })
   }
 
-  const getLoanIcon = (type: string) => {
-    switch (type) {
-      case 'credit_card':
-        return CreditCard
-      default:
-        return Briefcase
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -76,7 +67,7 @@ export function LiabilitiesListClient({ loans, breakdown }: LiabilitiesListClien
             </h4>
             <div className="space-y-2">
               {loans.map((loan) => {
-                const Icon = getLoanIcon(loan.loan_type)
+                const Icon = Briefcase // Use default icon since loan_type doesn't exist
                 return (
                   <div
                     key={loan.id}
@@ -88,8 +79,8 @@ export function LiabilitiesListClient({ loans, breakdown }: LiabilitiesListClien
                       </div>
                       <div>
                         <p className="font-medium text-sm">{loan.name}</p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {loan.loan_type.replace('_', ' ')} • {Number(loan.interest_rate).toFixed(2)}% APR
+                        <p className="text-xs text-muted-foreground">
+                          {Number(loan.interest_rate).toFixed(2)}% APR • {loan.term_months} months
                         </p>
                       </div>
                     </div>

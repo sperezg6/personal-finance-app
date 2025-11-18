@@ -50,13 +50,13 @@ export function LoanSummary() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {summaryCards.map((card, index) => {
-        const Icon = card.icon
+        const IconComponent = card.icon as React.ComponentType<{ className?: string; style?: React.CSSProperties }>
         return (
           <Card key={index} className="transition-all hover:shadow-lg hover:-translate-y-1">
             <CardContent className="space-y-5">
               {/* Header with icon and title */}
               <div className="flex items-center gap-2">
-                <Icon className="size-5" style={{ color: card.color }} />
+                <IconComponent className="size-5" style={{ color: card.color }} />
                 <span className="text-base font-semibold">{card.title}</span>
               </div>
 

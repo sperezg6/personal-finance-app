@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
-import { TrendingUp, TrendingDown } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -46,7 +45,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function ConversionFunnelChart({ data }: ConversionFunnelChartProps) {
-  const [timeRange, setTimeRange] = React.useState('90d');
+  const [timeRange, setTimeRange] = React.useState('7d');
 
   const filteredData = React.useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -181,7 +180,9 @@ export function ConversionFunnelChart({ data }: ConversionFunnelChartProps) {
               tickMargin={8}
               minTickGap={32}
               tickFormatter={(value) => {
-                const date = new Date(value);
+                // Parse date string as local time to avoid UTC conversion
+                const [year, month, day] = value.split('-').map(Number);
+                const date = new Date(year, month - 1, day);
                 return date.toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
@@ -193,7 +194,10 @@ export function ConversionFunnelChart({ data }: ConversionFunnelChartProps) {
               content={
                 <ChartTooltipContent
                   labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString('en-US', {
+                    // Parse date string as local time to avoid UTC conversion
+                    const [year, month, day] = String(value).split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
                     });

@@ -67,7 +67,7 @@ export function PayoffVisualization() {
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {payoffGoals.map((goal, index) => {
-            const Icon = goal.icon
+            const IconComponent = goal.icon as React.ComponentType<{ className?: string; style?: React.CSSProperties }>
             const progress = calculateProgress(goal.currentValue, goal.goalValue)
 
             return (
@@ -97,7 +97,7 @@ export function PayoffVisualization() {
                       className="p-2 rounded-full mb-1"
                       style={{ backgroundColor: `${goal.color}20` }}
                     >
-                      <Icon className="size-5" style={{ color: goal.color }} />
+                      <IconComponent className="size-5" style={{ color: goal.color }} />
                     </div>
                     <span className="text-2xl font-bold" style={{ color: goal.color }}>
                       {progress}%

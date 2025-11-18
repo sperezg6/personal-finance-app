@@ -18,11 +18,11 @@ interface BubbleData {
 interface SavingsGoal {
   id: string
   name: string
-  target_amount: number
-  current_amount: number
-  deadline?: string
-  color?: string
-  icon?: string
+  target_amount: number | null
+  balance: number | null
+  deadline?: string | null
+  color?: string | null
+  icon?: string | null
 }
 
 interface BubbleChartProps {
@@ -50,14 +50,6 @@ const getIconForGoal = (name: string): string => {
   if (nameLower.includes('education') || nameLower.includes('school')) return '📚'
   if (nameLower.includes('wedding')) return '💍'
   return '📦'
-}
-
-// Calculate bubble size based on amount
-const getBubbleSize = (amount: number): number => {
-  const maxAmount = 12500
-  const minSize = 100
-  const maxSize = 200
-  return minSize + ((amount / maxAmount) * (maxSize - minSize))
 }
 
 // Optimized balanced grid positions - prevents overlaps and uses full vertical space
@@ -91,10 +83,10 @@ export function BubbleChart({ goals = [] }: BubbleChartProps) {
   }, [])
 
   // Convert goals to bubble data
-  const totalSavings = goals.reduce((sum, g) => sum + Number(g.current_amount), 0)
+  const totalSavings = goals.reduce((sum, g) => sum + Number(g.balance || 0), 0)
 
   const savingsData: BubbleData[] = goals.map((goal, index) => {
-    const amount = Number(goal.current_amount)
+    const amount = Number(goal.balance || 0)
     const percentage = totalSavings > 0 ? (amount / totalSavings) * 100 : 0
     const colors = colorPalette[index % colorPalette.length]
 

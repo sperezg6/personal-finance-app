@@ -4,6 +4,33 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 // =====================================================
+// SANITIZATION HELPERS
+// =====================================================
+
+// Sanitize string input by trimming, limiting length, and removing potential XSS
+function sanitizeString(input: string, maxLength: number = 500): string {
+  return input
+    .trim()
+    .slice(0, maxLength)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+}
+
+// Sanitize numeric input
+function sanitizeNumber(input: number, min: number = 0, max: number = 999999999): number {
+  if (isNaN(input) || !isFinite(input)) return 0
+  return Math.max(min, Math.min(max, input))
+}
+
+// Validate date format (YYYY-MM-DD)
+function isValidDate(dateString: string): boolean {
+  const regex = /^\d{4}-\d{2}-\d{2}$/
+  if (!regex.test(dateString)) return false
+  const date = new Date(dateString)
+  return date instanceof Date && !isNaN(date.getTime())
+}
+
+// =====================================================
 // TRANSACTION ACTIONS
 // =====================================================
 
@@ -11,10 +38,11 @@ export interface CreateTransactionInput {
   date: string
   description: string
   category: string
-  paymentMethod: string
+  paymentMethod?: string
   amount: number
   type: 'income' | 'expense'
   notes?: string
+  accountId?: string  // Optional account association
 }
 
 export interface UpdateTransactionInput {
@@ -36,40 +64,77 @@ export async function createTransaction(input: CreateTransactionInput) {
     return { error: 'Not authenticated' }
   }
 
+  // Validate and sanitize inputs
+  if (!isValidDate(input.date)) {
+    return { error: 'Invalid date format' }
+  }
+
+  const sanitizedDescription = sanitizeString(input.description, 255)
+  if (!sanitizedDescription) {
+    return { error: 'Description is required' }
+  }
+
+  const sanitizedAmount = sanitizeNumber(input.amount, 0.01, 999999999)
+  if (sanitizedAmount <= 0) {
+    return { error: 'Amount must be greater than 0' }
+  }
+
+  if (!['income', 'expense'].includes(input.type)) {
+    return { error: 'Invalid transaction type' }
+  }
+
   // Find category by name
+  const sanitizedCategory = sanitizeString(input.category, 100)
   const { data: category } = await supabase
     .from('categories')
     .select('id')
-    .eq('name', input.category)
-    .or(`user_id.eq.${user.id},is_system.eq.true`)
+    .eq('name', sanitizedCategory)
+    .eq('user_id', user.id)
     .single()
 
   if (!category) {
     return { error: 'Category not found' }
   }
 
-  const { data, error } = await supabase
+  // Find payment method by name if provided
+  let paymentMethodId: string | null = null
+  if (input.paymentMethod) {
+    const sanitizedPaymentMethod = sanitizeString(input.paymentMethod, 100)
+    const { data: paymentMethod } = await supabase
+      .from('payment_methods')
+      .select('id')
+      .eq('name', sanitizedPaymentMethod)
+      .eq('user_id', user.id)
+      .single()
+
+    if (paymentMethod) {
+      paymentMethodId = paymentMethod.id
+    }
+  }
+
+  const { data, error} = await supabase
     .from('transactions')
     .insert({
       user_id: user.id,
       date: input.date,
-      description: input.description,
+      description: sanitizedDescription,
       category_id: category.id,
-      payment_method: input.paymentMethod,
-      amount: input.amount,
+      payment_method_id: paymentMethodId,
+      amount: sanitizedAmount,
       type: input.type,
-      notes: input.notes,
+      account_id: input.accountId || null,
     })
     .select()
     .single()
 
   if (error) {
     console.error('Error creating transaction:', error)
-    return { error: error.message }
+    return { error: 'Failed to create transaction' }
   }
 
   revalidatePath('/transactions')
-  revalidatePath('/')
+  revalidatePath('/savings')
+  revalidatePath('/home')
   return { data }
 }
 
@@ -81,11 +146,10 @@ export async function updateTransaction(input: UpdateTransactionInput) {
     return { error: 'Not authenticated' }
   }
 
-  const updateData: any = {}
+  const updateData: Record<string, string | number | null> = {}
 
   if (input.date) updateData.date = input.date
   if (input.description) updateData.description = input.description
-  if (input.paymentMethod) updateData.payment_method = input.paymentMethod
   if (input.amount !== undefined) updateData.amount = input.amount
   if (input.type) updateData.type = input.type
   if (input.notes !== undefined) updateData.notes = input.notes
@@ -96,11 +160,25 @@ export async function updateTransaction(input: UpdateTransactionInput) {
       .from('categories')
       .select('id')
       .eq('name', input.category)
-      .or(`user_id.eq.${user.id},is_system.eq.true`)
+      .eq('user_id', user.id)
       .single()
 
     if (category) {
       updateData.category_id = category.id
+    }
+  }
+
+  // Find payment method by name if provided
+  if (input.paymentMethod) {
+    const { data: paymentMethod } = await supabase
+      .from('payment_methods')
+      .select('id')
+      .eq('name', input.paymentMethod)
+      .eq('user_id', user.id)
+      .single()
+
+    if (paymentMethod) {
+      updateData.payment_method_id = paymentMethod.id
     }
   }
 
@@ -118,7 +196,7 @@ export async function updateTransaction(input: UpdateTransactionInput) {
   }
 
   revalidatePath('/transactions')
-  revalidatePath('/')
+  revalidatePath('/home')
   return { data }
 }
 
@@ -142,7 +220,7 @@ export async function deleteTransaction(id: string) {
   }
 
   revalidatePath('/transactions')
-  revalidatePath('/')
+  revalidatePath('/home')
   return { success: true }
 }
 
@@ -289,7 +367,7 @@ export async function deleteBudget(id: string) {
 }
 
 // =====================================================
-// SAVINGS GOAL ACTIONS
+// SAVINGS GOAL ACTIONS (Now using accounts table with account_purpose='goal')
 // =====================================================
 
 export interface CreateSavingsGoalInput {
@@ -311,16 +389,20 @@ export async function createSavingsGoal(input: CreateSavingsGoalInput) {
   }
 
   const { data, error } = await supabase
-    .from('savings_goals')
+    .from('accounts')
     .insert({
       user_id: user.id,
       name: input.name,
+      type: 'savings', // Account type
+      account_purpose: 'goal', // This makes it a savings goal
       target_amount: input.targetAmount,
-      current_amount: input.currentAmount || 0,
+      balance: input.currentAmount || 0,
       deadline: input.deadline,
       description: input.description,
       color: input.color,
       icon: input.icon,
+      is_active: true,
+      is_completed: false,
     })
     .select()
     .single()
@@ -331,6 +413,7 @@ export async function createSavingsGoal(input: CreateSavingsGoalInput) {
   }
 
   revalidatePath('/savings')
+  revalidatePath('/home')
   return { data }
 }
 
@@ -343,10 +426,11 @@ export async function updateSavingsGoal(id: string, currentAmount: number) {
   }
 
   const { data, error } = await supabase
-    .from('savings_goals')
-    .update({ current_amount: currentAmount })
+    .from('accounts')
+    .update({ balance: currentAmount })
     .eq('id', id)
     .eq('user_id', user.id)
+    .eq('account_purpose', 'goal')
     .select()
     .single()
 
@@ -356,6 +440,7 @@ export async function updateSavingsGoal(id: string, currentAmount: number) {
   }
 
   revalidatePath('/savings')
+  revalidatePath('/home')
   return { data }
 }
 
@@ -368,10 +453,11 @@ export async function deleteSavingsGoal(id: string) {
   }
 
   const { error } = await supabase
-    .from('savings_goals')
+    .from('accounts')
     .delete()
     .eq('id', id)
     .eq('user_id', user.id)
+    .eq('account_purpose', 'goal')
 
   if (error) {
     console.error('Error deleting savings goal:', error)
@@ -379,7 +465,315 @@ export async function deleteSavingsGoal(id: string) {
   }
 
   revalidatePath('/savings')
+  revalidatePath('/home')
   return { success: true }
+}
+
+// =====================================================
+// RECURRING TRANSACTION ACTIONS
+// =====================================================
+
+export interface CreateRecurringTransactionInput {
+  description: string
+  amount: number
+  type: 'income' | 'expense'
+  category: string
+  paymentMethod?: string
+  frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
+  startDate: string
+  endDate?: string
+  dayOfMonth?: number
+  dayOfWeek?: number
+  intervalCount?: number
+  autoCreate?: boolean
+}
+
+export async function createRecurringTransaction(input: CreateRecurringTransactionInput) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate and sanitize inputs
+  const sanitizedDescription = sanitizeString(input.description, 255)
+  if (!sanitizedDescription) {
+    return { error: 'Description is required' }
+  }
+
+  const sanitizedAmount = sanitizeNumber(input.amount, 0.01, 999999999)
+  if (sanitizedAmount <= 0) {
+    return { error: 'Amount must be greater than 0' }
+  }
+
+  if (!['income', 'expense'].includes(input.type)) {
+    return { error: 'Invalid transaction type' }
+  }
+
+  const validFrequencies = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly']
+  if (!validFrequencies.includes(input.frequency)) {
+    return { error: 'Invalid frequency' }
+  }
+
+  if (!isValidDate(input.startDate)) {
+    return { error: 'Invalid start date format' }
+  }
+
+  if (input.endDate && !isValidDate(input.endDate)) {
+    return { error: 'Invalid end date format' }
+  }
+
+  // Find category by name
+  const sanitizedCategory = sanitizeString(input.category, 100)
+  const { data: category } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('name', sanitizedCategory)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!category) {
+    return { error: 'Category not found' }
+  }
+
+  // Find payment method by name if provided
+  let paymentMethodId: string | null = null
+  if (input.paymentMethod) {
+    const sanitizedPaymentMethod = sanitizeString(input.paymentMethod, 100)
+    const { data: paymentMethod } = await supabase
+      .from('payment_methods')
+      .select('id')
+      .eq('name', sanitizedPaymentMethod)
+      .eq('user_id', user.id)
+      .single()
+
+    if (paymentMethod) {
+      paymentMethodId = paymentMethod.id
+    }
+  }
+
+  // Calculate next due date based on frequency and start date
+  const nextDueDate = input.startDate // Initially set to start date
+
+  const { data, error } = await supabase
+    .from('recurring_transactions')
+    .insert({
+      user_id: user.id,
+      description: sanitizedDescription,
+      amount: sanitizedAmount,
+      type: input.type,
+      category_id: category.id,
+      payment_method_id: paymentMethodId,
+      frequency: input.frequency,
+      start_date: input.startDate,
+      end_date: input.endDate || null,
+      next_due_date: nextDueDate,
+      day_of_month: input.dayOfMonth || null,
+      day_of_week: input.dayOfWeek || null,
+      interval_count: input.intervalCount || 1,
+      auto_create: input.autoCreate ?? true,
+      is_active: true,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating recurring transaction:', error)
+    return { error: 'Failed to create recurring transaction' }
+  }
+
+  revalidatePath('/transactions')
+  return { data }
+}
+
+export async function updateRecurringTransaction(id: string, updates: Partial<CreateRecurringTransactionInput>) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  const updateData: Record<string, string | number | boolean | null> = {}
+
+  if (updates.description) updateData.description = sanitizeString(updates.description, 255)
+  if (updates.amount !== undefined) updateData.amount = sanitizeNumber(updates.amount, 0.01, 999999999)
+  if (updates.type) updateData.type = updates.type
+  if (updates.frequency) updateData.frequency = updates.frequency
+  if (updates.startDate) updateData.start_date = updates.startDate
+  if (updates.endDate !== undefined) updateData.end_date = updates.endDate
+  if (updates.dayOfMonth !== undefined) updateData.day_of_month = updates.dayOfMonth
+  if (updates.dayOfWeek !== undefined) updateData.day_of_week = updates.dayOfWeek
+  if (updates.intervalCount !== undefined) updateData.interval_count = updates.intervalCount
+  if (updates.autoCreate !== undefined) updateData.auto_create = updates.autoCreate
+
+  // Find category by name if provided
+  if (updates.category) {
+    const { data: category } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('name', updates.category)
+      .eq('user_id', user.id)
+      .single()
+
+    if (category) {
+      updateData.category_id = category.id
+    }
+  }
+
+  // Find payment method by name if provided
+  if (updates.paymentMethod) {
+    const { data: paymentMethod } = await supabase
+      .from('payment_methods')
+      .select('id')
+      .eq('name', updates.paymentMethod)
+      .eq('user_id', user.id)
+      .single()
+
+    if (paymentMethod) {
+      updateData.payment_method_id = paymentMethod.id
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('recurring_transactions')
+    .update(updateData)
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error updating recurring transaction:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/transactions')
+  return { data }
+}
+
+export async function deleteRecurringTransaction(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  const { error } = await supabase
+    .from('recurring_transactions')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Error deleting recurring transaction:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/transactions')
+  return { success: true }
+}
+
+export async function toggleRecurringTransactionActive(id: string, isActive: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  const { data, error } = await supabase
+    .from('recurring_transactions')
+    .update({ is_active: isActive })
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error toggling recurring transaction:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/transactions')
+  return { data }
+}
+
+export async function createTransactionFromRecurring(recurringId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Get the recurring transaction
+  const { data: recurring, error: fetchError } = await supabase
+    .from('recurring_transactions')
+    .select('*, category:categories(name), payment_method:payment_methods(name)')
+    .eq('id', recurringId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (fetchError || !recurring) {
+    return { error: 'Recurring transaction not found' }
+  }
+
+  // Create the transaction using the current date
+  const today = new Date().toISOString().split('T')[0]
+
+  const result = await createTransaction({
+    date: today,
+    description: recurring.description,
+    category: recurring.category?.name || 'Other',
+    paymentMethod: recurring.payment_method?.name,
+    amount: Number(recurring.amount),
+    type: recurring.type as 'income' | 'expense',
+  })
+
+  if (result.error) {
+    return { error: result.error }
+  }
+
+  // Update the last_created_date
+  await supabase
+    .from('recurring_transactions')
+    .update({ last_created_date: today })
+    .eq('id', recurringId)
+
+  revalidatePath('/transactions')
+  return { data: result.data }
+}
+
+/**
+ * Process all due recurring transactions
+ * This calls the database function to automatically create transactions from recurring entries
+ */
+export async function processRecurringTransactions() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Call the database function
+  const { data, error } = await supabase.rpc('process_recurring_transactions')
+
+  if (error) {
+    console.error('Error processing recurring transactions:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/transactions')
+  return {
+    data: {
+      processedCount: data?.[0]?.processed_count || 0,
+      createdTransactionIds: data?.[0]?.created_transaction_ids || []
+    }
+  }
 }
 
 // =====================================================
@@ -388,15 +782,11 @@ export async function deleteSavingsGoal(id: string) {
 
 export interface CreateLoanInput {
   name: string
-  loanType: 'mortgage' | 'auto' | 'student' | 'personal' | 'credit_card' | 'business' | 'other'
-  principalAmount: number
-  currentBalance: number
-  interestRate: number
-  monthlyPayment: number
+  principal: string
+  interestRate: string
+  termMonths: string
+  monthlyPayment: string
   startDate: string
-  endDate?: string
-  lender?: string
-  notes?: string
 }
 
 export async function createLoan(input: CreateLoanInput) {
@@ -407,32 +797,68 @@ export async function createLoan(input: CreateLoanInput) {
     return { error: 'Not authenticated' }
   }
 
+  // Validate and sanitize name
+  const sanitizedName = sanitizeString(input.name, 255)
+  if (!sanitizedName) {
+    return { error: 'Loan name is required' }
+  }
+
+  // Validate and parse principal
+  const principal = parseFloat(input.principal)
+  if (isNaN(principal) || principal <= 0) {
+    return { error: 'Principal amount must be greater than 0' }
+  }
+  const sanitizedPrincipal = sanitizeNumber(principal, 0.01, 999999999)
+
+  // Validate and parse interest rate
+  const interestRate = parseFloat(input.interestRate)
+  if (isNaN(interestRate) || interestRate < 0) {
+    return { error: 'Interest rate must be 0 or greater' }
+  }
+  const sanitizedInterestRate = sanitizeNumber(interestRate, 0, 100)
+
+  // Validate and parse term months
+  const termMonths = parseInt(input.termMonths)
+  if (isNaN(termMonths) || termMonths <= 0 || !Number.isInteger(termMonths)) {
+    return { error: 'Loan term must be a positive whole number of months' }
+  }
+  const sanitizedTermMonths = Math.floor(sanitizeNumber(termMonths, 1, 600))
+
+  // Validate and parse monthly payment
+  const monthlyPayment = parseFloat(input.monthlyPayment)
+  if (isNaN(monthlyPayment) || monthlyPayment <= 0) {
+    return { error: 'Monthly payment must be greater than 0' }
+  }
+  const sanitizedMonthlyPayment = sanitizeNumber(monthlyPayment, 0.01, 999999999)
+
+  // Validate start date
+  if (!isValidDate(input.startDate)) {
+    return { error: 'Invalid start date format' }
+  }
+
   const { data, error } = await supabase
     .from('loans')
     .insert({
       user_id: user.id,
-      name: input.name,
-      loan_type: input.loanType,
-      principal_amount: input.principalAmount,
-      current_balance: input.currentBalance,
-      interest_rate: input.interestRate,
-      monthly_payment: input.monthlyPayment,
+      name: sanitizedName,
+      principal: sanitizedPrincipal,
+      interest_rate: sanitizedInterestRate,
+      term_months: sanitizedTermMonths,
+      monthly_payment: sanitizedMonthlyPayment,
+      current_balance: sanitizedPrincipal, // Initially equals principal
       start_date: input.startDate,
-      end_date: input.endDate,
-      lender: input.lender,
-      notes: input.notes,
-      status: 'active',
+      payments_made: 0, // Start with 0 payments
     })
     .select()
     .single()
 
   if (error) {
     console.error('Error creating loan:', error)
-    return { error: error.message }
+    return { error: 'Failed to create loan' }
   }
 
   revalidatePath('/loans')
-  revalidatePath('/networth')
+  revalidatePath('/home')
   return { data }
 }
 
@@ -444,14 +870,10 @@ export async function updateLoan(id: string, currentBalance: number) {
     return { error: 'Not authenticated' }
   }
 
-  // Check if balance is 0 or less, mark as paid off
-  const status = currentBalance <= 0 ? 'paid_off' : 'active'
-
   const { data, error } = await supabase
     .from('loans')
     .update({
       current_balance: currentBalance,
-      status: status
     })
     .eq('id', id)
     .eq('user_id', user.id)
@@ -464,7 +886,7 @@ export async function updateLoan(id: string, currentBalance: number) {
   }
 
   revalidatePath('/loans')
-  revalidatePath('/networth')
+  revalidatePath('/home')
   return { data }
 }
 
@@ -488,6 +910,6 @@ export async function deleteLoan(id: string) {
   }
 
   revalidatePath('/loans')
-  revalidatePath('/networth')
+  revalidatePath('/home')
   return { success: true }
 }

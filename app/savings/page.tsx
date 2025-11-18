@@ -2,6 +2,7 @@ import { NavBarWrapper } from "@/components/navbar-wrapper"
 import { BlurFade } from "@/components/ui/blur-fade"
 import { SavingsSummaryClient } from "@/components/savings/savings-summary-client"
 import { BubbleChart } from "@/components/savings/bubble-chart"
+import { SavingsActionsClient } from "@/components/savings/savings-actions-client"
 import { createClient } from "@/lib/supabase/server"
 import { getSavingsSummary, getSavingsGoals } from "@/lib/db/queries"
 
@@ -43,12 +44,19 @@ export default async function SavingsPage() {
       <div className="container mx-auto px-4 pt-24 space-y-8 pb-12">
         {/* Page Header */}
         <div className="space-y-4">
-          <BlurFade delay={0.25} inView>
-            <h1 className="text-4xl font-bold">Savings</h1>
-          </BlurFade>
-          <BlurFade delay={0.5} inView>
-            <p className="text-muted-foreground">Track your savings goals and distribution across categories</p>
-          </BlurFade>
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <BlurFade delay={0.25} inView>
+                <h1 className="text-4xl font-bold">Savings</h1>
+              </BlurFade>
+              <BlurFade delay={0.5} inView>
+                <p className="text-muted-foreground">Track your savings goals and distribution across categories</p>
+              </BlurFade>
+            </div>
+            <BlurFade delay={0.5} inView>
+              <SavingsActionsClient savingsAccounts={goals} />
+            </BlurFade>
+          </div>
         </div>
 
         {/* Summary Cards */}

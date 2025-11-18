@@ -62,6 +62,13 @@ export function BudgetCardsClient({ initialBudgets }: BudgetCardsClientProps) {
   const [editValue, setEditValue] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
 
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+  }
+
   const handleEdit = (budget: BudgetWithSpending) => {
     setEditingId(budget.id)
     setEditValue(budget.monthlyLimit.toString())
@@ -112,7 +119,7 @@ export function BudgetCardsClient({ initialBudgets }: BudgetCardsClientProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {budgets.map((budget) => {
-        const Icon = iconMap[budget.icon] || DollarSign
+        const IconComponent = (iconMap[budget.icon] || DollarSign) as React.ComponentType<{ className?: string; style?: React.CSSProperties }>
         const status = getBudgetStatus(budget.percentage)
         const statusColor = getStatusColor(status)
         const isEditing = editingId === budget.id
@@ -122,7 +129,7 @@ export function BudgetCardsClient({ initialBudgets }: BudgetCardsClientProps) {
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Icon className="size-5" style={{ color: budget.color }} />
+                  <IconComponent className="size-5" style={{ color: budget.color || undefined }} />
                   <CardTitle className="text-base">{budget.category}</CardTitle>
                 </div>
                 {!isEditing ? (
@@ -222,12 +229,12 @@ export function BudgetCardsClient({ initialBudgets }: BudgetCardsClientProps) {
                       disabled={isSaving}
                     />
                   ) : (
-                    <span className="font-semibold font-mono">${budget.monthlyLimit.toFixed(2)}</span>
+                    <span className="font-semibold font-mono">${formatCurrency(budget.monthlyLimit)}</span>
                   )}
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Spent</span>
-                  <span className="font-semibold text-red-600 font-mono">${budget.spent.toFixed(2)}</span>
+                  <span className="font-semibold text-red-600 font-mono">${formatCurrency(budget.spent)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm pt-2 border-t">
                   <span className="text-muted-foreground font-medium">Remaining</span>
@@ -237,7 +244,7 @@ export function BudgetCardsClient({ initialBudgets }: BudgetCardsClientProps) {
                       color: budget.remaining >= 0 ? 'rgb(16 185 129)' : 'rgb(239 68 68)'
                     }}
                   >
-                    ${Math.abs(budget.remaining).toFixed(2)}
+                    ${formatCurrency(Math.abs(budget.remaining))}
                     {budget.remaining < 0 && ' over'}
                   </span>
                 </div>

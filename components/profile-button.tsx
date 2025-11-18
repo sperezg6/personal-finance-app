@@ -80,7 +80,7 @@ export function ProfileButton({ user }: ProfileButtonProps) {
         // Refresh the page to show updated name
         router.refresh()
       }
-    } catch (err) {
+    } catch {
       setError('Failed to update name. Please try again.')
     } finally {
       setIsLoading(false)

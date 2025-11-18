@@ -34,8 +34,9 @@ export default function ForgotPasswordPage() {
         );
         setEmail('');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +59,7 @@ export default function ForgotPasswordPage() {
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Reset Password</h1>
             <p className="text-muted-foreground">
-              Enter your email and we'll send you a reset link
+              Enter your email and we&apos;ll send you a reset link
             </p>
           </div>
 

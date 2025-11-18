@@ -38,6 +38,11 @@ export interface AddBudgetDialogProps {
    * Custom className for the button
    */
   className?: string
+
+  /**
+   * List of available categories to choose from
+   */
+  categories?: string[]
 }
 
 /**
@@ -65,6 +70,7 @@ export function AddBudgetDialog({
   size = 'default',
   onSubmit,
   className,
+  categories,
 }: AddBudgetDialogProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -86,7 +92,12 @@ export function AddBudgetDialog({
         onClick={() => setOpen(true)}
         className={className}
       />
-      <AddBudgetForm open={open} onOpenChange={setOpen} onSubmit={handleSubmit} />
+      <AddBudgetForm
+        open={open}
+        onOpenChange={setOpen}
+        onSubmit={handleSubmit}
+        categories={categories}
+      />
     </>
   )
 }

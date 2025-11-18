@@ -133,11 +133,11 @@ export function SimplifiedLoanView() {
         <div className="flex flex-wrap gap-8 p-6 bg-muted/30 rounded-lg border">
           <div>
             <p className="text-sm text-muted-foreground mb-1">Total Balance</p>
-            <p className="text-3xl font-bold">${formatCurrency(totalDebt)}</p>
+            <p className="text-3xl font-bold font-mono">${formatCurrency(totalDebt)}</p>
           </div>
           <div className="border-l pl-8">
             <p className="text-sm text-muted-foreground mb-1">Monthly Payment</p>
-            <p className="text-3xl font-bold">${formatCurrency(totalMonthly)}</p>
+            <p className="text-3xl font-bold font-mono">${formatCurrency(totalMonthly)}</p>
           </div>
           <div className="border-l pl-8 flex items-center gap-2">
             <Calendar className="size-5 text-muted-foreground" />
@@ -152,7 +152,7 @@ export function SimplifiedLoanView() {
       {/* Streamlined Loan Cards */}
       <div className="space-y-4">
         {loans.map((loan) => {
-          const Icon = loan.icon
+          const IconComponent = loan.icon as React.ComponentType<{ className?: string; style?: React.CSSProperties }>
           const config = statusConfig[loan.status]
           const progress = calculateProgress(loan.currentBalance, loan.originalAmount)
           const isOverdue = loan.status === 'behind'
@@ -165,7 +165,7 @@ export function SimplifiedLoanView() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 flex-1">
                       <div className="p-2.5 rounded-lg bg-muted">
-                        <Icon className="size-5 text-muted-foreground" />
+                        <IconComponent className="size-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -183,7 +183,7 @@ export function SimplifiedLoanView() {
 
                     {/* Balance - Right Aligned */}
                     <div className="text-right">
-                      <p className="text-2xl font-bold">${formatCurrency(loan.currentBalance)}</p>
+                      <p className="text-2xl font-bold font-mono">${formatCurrency(loan.currentBalance)}</p>
                       <p className="text-sm text-muted-foreground">
                         {progress}% paid off
                       </p>
@@ -206,7 +206,7 @@ export function SimplifiedLoanView() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Payment:</span>
-                        <span className="font-semibold ml-1.5">${formatCurrency(loan.monthlyPayment)}</span>
+                        <span className="font-semibold font-mono ml-1.5">${formatCurrency(loan.monthlyPayment)}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Type:</span>
