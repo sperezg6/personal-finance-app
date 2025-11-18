@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AddButton } from "@/components/ui/add-transaction-button"
-import { ArrowDownRight, ArrowUpRight, CircleDollarSign, TrendingDown, TrendingUp, Hash, MoreVertical, Pencil, Trash2, Copy } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, CircleDollarSign, TrendingDown, TrendingUp, Hash, MoreVertical, Pencil, Trash2, Copy, CreditCard } from "lucide-react"
 import { useState } from "react"
 import { deleteTransaction, duplicateTransaction, updateTransaction, createTransaction, type UpdateTransactionInput } from "@/lib/db/actions"
 import { useRouter } from "next/navigation"
@@ -260,21 +260,32 @@ export function TransactionsClient({ initialTransactions, metrics, categories, p
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={transaction.type === 'expense' ? 'destructive' : 'default'}
-                            className={
-                              transaction.type === 'income'
-                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                : 'bg-red-100 text-red-700 hover:bg-red-200'
-                            }
-                          >
-                            {transaction.type === 'expense' ? (
-                              <ArrowDownRight className="size-3 mr-1" />
-                            ) : (
-                              <ArrowUpRight className="size-3 mr-1" />
+                          <div className="flex flex-col gap-1.5">
+                            <Badge
+                              variant={transaction.type === 'expense' ? 'destructive' : 'default'}
+                              className={
+                                transaction.type === 'income'
+                                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+                              }
+                            >
+                              {transaction.type === 'expense' ? (
+                                <ArrowDownRight className="size-3 mr-1" />
+                              ) : (
+                                <ArrowUpRight className="size-3 mr-1" />
+                              )}
+                              {transaction.type}
+                            </Badge>
+                            {transaction.loan_payment_id && (
+                              <Badge
+                                variant="outline"
+                                className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800 text-xs"
+                              >
+                                <CreditCard className="size-3 mr-1" />
+                                Loan Payment
+                              </Badge>
                             )}
-                            {transaction.type}
-                          </Badge>
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <DropdownMenu>

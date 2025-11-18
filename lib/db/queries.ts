@@ -85,7 +85,8 @@ export const getTransactions = cache(async (
     .select(`
       *,
       category:categories(*),
-      payment_method:payment_methods(id, name)
+      payment_method:payment_methods(id, name),
+      loan_payment:loan_payments(id)
     `)
     .eq('user_id', userId)
     .order('date', { ascending: false })
@@ -819,11 +820,20 @@ export interface LoanWithNextPayment {
     user_id: string
   }
   nextPayment: {
+    id: string
+    loan_id: string
     payment_number: number
     due_date: string
     amount_due: number
-    principal_amount: number
-    interest_amount: number
+    principal_amount: number | null
+    interest_amount: number | null
+    paid_amount: number | null
+    paid_date: string | null
+    status: string
+    notes: string | null
+    remaining_balance: number | null
+    created_at: string | null
+    updated_at: string | null
   } | null
   paymentsCompleted: number
   totalPayments: number

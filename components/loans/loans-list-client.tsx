@@ -13,18 +13,22 @@ import {
   Calendar,
   TrendingUp,
   Trash2,
-  Loader2
+  Loader2,
+  DollarSign
 } from "lucide-react"
 import type { LoanWithNextPayment } from "@/lib/db/queries"
+import type { PaymentMethod } from "@/lib/supabase/database.types"
 import { updateLoan, deleteLoan } from "@/lib/db/actions"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
+import { MakeLoanPaymentDialog } from "./make-loan-payment-dialog"
 
 interface LoansListClientProps {
   initialLoansWithPayments: LoanWithNextPayment[]
+  paymentMethods: PaymentMethod[]
 }
 
-export function LoansListClient({ initialLoansWithPayments }: LoansListClientProps) {
+export function LoansListClient({ initialLoansWithPayments, paymentMethods }: LoansListClientProps) {
   const router = useRouter()
   const [loansWithPayments, setLoansWithPayments] = useState(initialLoansWithPayments)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -248,6 +252,23 @@ export function LoansListClient({ initialLoansWithPayments }: LoansListClientPro
                         <span className="font-semibold">${formatCurrency(Number(nextPayment.amount_due))}</span>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Make Payment Button */}
+                {nextPayment && !isPaidOff && (
+                  <div className="pt-2">
+                    <MakeLoanPaymentDialog
+                      loanId={loan.id}
+                      loanName={loan.name}
+                      nextPayment={nextPayment}
+                      paymentMethods={paymentMethods}
+                    >
+                      <Button variant="default" size="sm" className="w-full sm:w-auto">
+                        <DollarSign className="mr-2 h-4 w-4" />
+                        Make Payment
+                      </Button>
+                    </MakeLoanPaymentDialog>
                   </div>
                 )}
 

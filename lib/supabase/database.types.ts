@@ -528,6 +528,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          loan_payment_id: string | null
           payment_method_id: string | null
           type: 'income' | 'expense'
           updated_at: string
@@ -541,6 +542,7 @@ export type Database = {
           date: string
           description?: string | null
           id?: string
+          loan_payment_id?: string | null
           payment_method_id?: string | null
           type: 'income' | 'expense'
           updated_at?: string
@@ -554,6 +556,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          loan_payment_id?: string | null
           payment_method_id?: string | null
           type?: 'income' | 'expense'
           updated_at?: string

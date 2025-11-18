@@ -41,6 +41,13 @@ export default async function LoansPage() {
   const summary = await getLoansSummary(user.id)
   const loansWithPayments = await getLoansWithPayments(user.id)
 
+  // Fetch payment methods for the payment dialog
+  const { data: paymentMethods } = await supabase
+    .from('payment_methods')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('name')
+
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-US', {
       minimumFractionDigits: 0,
@@ -131,7 +138,10 @@ export default async function LoansPage() {
 
         {/* Loans List */}
         <BlurFade delay={1.25} inView>
-          <LoansListClient initialLoansWithPayments={loansWithPayments} />
+          <LoansListClient
+            initialLoansWithPayments={loansWithPayments}
+            paymentMethods={paymentMethods || []}
+          />
         </BlurFade>
       </div>
     </main>

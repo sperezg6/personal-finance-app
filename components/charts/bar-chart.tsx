@@ -127,7 +127,7 @@ export function BarChartComponent({ data = [] }: BarChartComponentProps) {
                 <ChartTooltipContent
                   formatter={(value, name) => {
                     const formattedValue = `$${formatCurrency(Number(value))}`
-                    return [formattedValue, name === 'budget' ? 'Budget' : 'Spent']
+                    return [formattedValue, ' ', name === 'budget' ? 'Budget' : 'Spent']
                   }}
                 />
               }

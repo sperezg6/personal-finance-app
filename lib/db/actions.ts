@@ -913,3 +913,143 @@ export async function deleteLoan(id: string) {
   revalidatePath('/home')
   return { success: true }
 }
+
+/**
+ * Get next due loan payment for a loan
+ */
+export async function getNextDueLoanPayment(loanId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  const { data, error } = await supabase
+    .from('loan_payments')
+    .select('*')
+    .eq('loan_id', loanId)
+    .eq('status', 'pending')
+    .order('due_date', { ascending: true })
+    .limit(1)
+    .single()
+
+  if (error) {
+    // If no pending payments found, it's not an error
+    if (error.code === 'PGRST116') {
+      return { data: null }
+    }
+    return { error: error.message }
+  }
+
+  return { data }
+}
+
+export interface MakeLoanPaymentInput {
+  loanId: string
+  loanPaymentId: string
+  amount: number
+  date: string
+  paymentMethodId?: string
+  notes?: string
+}
+
+/**
+ * Make a loan payment
+ * This creates both a transaction (expense) and marks the loan payment as paid
+ */
+export async function makeLoanPayment(input: MakeLoanPaymentInput) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'Not authenticated' }
+  }
+
+  // Validate and sanitize inputs
+  if (!isValidDate(input.date)) {
+    return { error: 'Invalid date format' }
+  }
+
+  const sanitizedAmount = sanitizeNumber(input.amount, 0.01, 999999999)
+  if (sanitizedAmount <= 0) {
+    return { error: 'Payment amount must be greater than 0' }
+  }
+
+  // Get the loan name for the transaction description
+  const { data: loan } = await supabase
+    .from('loans')
+    .select('name')
+    .eq('id', input.loanId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!loan) {
+    return { error: 'Loan not found' }
+  }
+
+  // 1. Create the expense transaction linked to the loan payment
+  const { data: transaction, error: transactionError } = await supabase
+    .from('transactions')
+    .insert({
+      user_id: user.id,
+      type: 'expense',
+      amount: sanitizedAmount,
+      date: input.date,
+      description: `Loan payment - ${loan.name}`,
+      payment_method_id: input.paymentMethodId || null,
+      loan_payment_id: input.loanPaymentId,
+      category_id: null, // Loan payments don't need a category
+    })
+    .select()
+    .single()
+
+  if (transactionError) {
+    console.error('Error creating transaction:', transactionError)
+    return { error: 'Failed to create transaction' }
+  }
+
+  // 2. Update the loan_payment record as paid
+  const { error: paymentError } = await supabase
+    .from('loan_payments')
+    .update({
+      status: 'paid',
+      paid_amount: sanitizedAmount,
+      paid_date: input.date,
+      notes: input.notes || null,
+    })
+    .eq('id', input.loanPaymentId)
+
+  if (paymentError) {
+    console.error('Error updating loan payment:', paymentError)
+    // Rollback transaction if payment update fails
+    await supabase.from('transactions').delete().eq('id', transaction.id)
+    return { error: 'Failed to update loan payment' }
+  }
+
+  // 3. Update loan balance and payments_made
+  const { data: loanData } = await supabase
+    .from('loans')
+    .select('current_balance, payments_made')
+    .eq('id', input.loanId)
+    .single()
+
+  if (loanData) {
+    const newBalance = Math.max(0, Number(loanData.current_balance) - sanitizedAmount)
+    const newPaymentsMade = (loanData.payments_made || 0) + 1
+
+    await supabase
+      .from('loans')
+      .update({
+        current_balance: newBalance,
+        payments_made: newPaymentsMade,
+      })
+      .eq('id', input.loanId)
+  }
+
+  revalidatePath('/loans')
+  revalidatePath('/transactions')
+  revalidatePath('/home')
+
+  return { data: transaction }
+}
